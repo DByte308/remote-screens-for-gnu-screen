@@ -23,8 +23,10 @@ HOST="${entry%%|*}"; rem="${entry#*|}"; USER="${rem%%|*}"; rem="${rem#*|}"; PORT
 
 if [ "$HOST" = "local" ]; then
   # Herdr on this PC: open the local TUI (attaches to the local server socket)
-  exec nohup konsole --new-tab -e bash -c "export PATH=\$HOME/.local/bin:\$PATH; exec herdr" >/dev/null 2>&1 &
+  nohup konsole --new-tab -e bash -c "export PATH=\$HOME/.local/bin:\$PATH; exec herdr" >/dev/null 2>&1 &
+  exit 0 # do not fall through into the remote SSH branch
 fi
 
 SSHOPT=(-p "$PORT" -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new)
-exec nohup konsole --new-tab -e ssh "${SSHOPT[@]}" -t "${USER}@${HOST}" "herdr" >/dev/null 2>&1 &
+nohup konsole --new-tab -e ssh "${SSHOPT[@]}" -t "${USER}@${HOST}" "herdr" >/dev/null 2>&1 &
+exit 0
