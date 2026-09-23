@@ -143,7 +143,6 @@ combine operations in one call. Existing connections keep their engine when
 
 The widget is packaged in `plasmoid/org.d.llmsessions/`. The top-level
 `scripts/` directory contains optional CLI copies of the same scripts bundled
-with the widget. Development notes and Plasma/Plasmoid troubleshooting live in
-[`docs/PROBLEMS-FINDINGS.md`](docs/PROBLEMS-FINDINGS.md).
+with the widget.
 
 Licensed under GPL-2.0-or-later. This thing is 100% Vibecoded btw
