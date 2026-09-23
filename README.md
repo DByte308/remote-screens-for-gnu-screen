@@ -146,4 +146,4 @@ The widget is packaged in `plasmoid/org.d.llmsessions/`. The top-level
 with the widget. Development notes and Plasma/Plasmoid troubleshooting live in
 [`docs/PROBLEMS-FINDINGS.md`](docs/PROBLEMS-FINDINGS.md).
 
-Licensed under GPL-2.0-or-later. This thing is 100% Vibecodet btw
+Licensed under GPL-2.0-or-later. This thing is 100% Vibecoded btw
