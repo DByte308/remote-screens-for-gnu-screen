@@ -1,6 +1,10 @@
 # LLM Box Terminals
 
-<p align="center"><img src="icon.png" alt="LLM Box Terminals" width="225"></p>
+<p align="center">
+  <img src="logo.png" alt="LLM Box Terminals" width="200">
+  <br>
+  <img src="icon.png" alt="GNU Screen extension" width="300">
+</p>
 
 A KDE Plasma 6 panel widget that keeps an eye on the open terminals of one or
 more remote machines and lets you manage them from your desktop: see which
