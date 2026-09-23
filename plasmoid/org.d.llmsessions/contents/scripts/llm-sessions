@@ -68,7 +68,7 @@ p_n8n=$(  printf '%s\n' "$procs" | sed -n '2p')
 p_ollama=$(printf '%s\n' "$procs" | sed -n '3p')
 
 # --- output (human readable for popup / CLI) ---
-echo "LLM box · ${name} (${HOST}) · up ${upt} · load ${load}"
+echo "${name} (${HOST}) · up ${upt} · load ${load}"
 echo
 if [ "$total" -gt 0 ]; then
   echo "Screen: ${total} open — ${attached} attached · ${detached} detached"

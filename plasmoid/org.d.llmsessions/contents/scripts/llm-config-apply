@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# llm-config-apply — validate & write LLM Box widget settings.
+# llm-config-apply — validate & write Screen Sessions widget settings.
 # Takes a SEQUENCE of subcommands applied together, then written atomically
 # (temp-file + rename) only if every step validated:
 #   llm-config-apply set-conn NAME HOST USER PORT MODE [set-active NAME] [remove-conn NAME] [set-poll SECONDS]
@@ -99,7 +99,7 @@ fi
 mkdir -p "$(dirname "$CONF")"
 tmp="${CONF}.tmp.$$"
 {
-  echo "# LLM Box widget configuration (managed by llm-config-apply / widget gear)"
+  echo "# Screen Sessions widget configuration (managed by llm-config-apply / widget gear)"
   echo "# POLL_SECONDS=refresh · ACTIVE=current connection"
   echo "# CONN_<name>=\"<host>|<user>|<port>|<mode>\"  (mode: dr=detach-then-attach, x=share)"
   echo "POLL_SECONDS=${CONF_POLL}"

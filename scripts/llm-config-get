@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# llm-config-get — print the effective LLM Box widget config as KEY=VALUE lines.
+# llm-config-get — print the effective Screen Sessions widget config as KEY=VALUE lines.
 # Reads ~/.config/llmsessions/box.conf (overridable with $LLMBOX_CONF).
 # Used by the widget to prefill the settings panel.
 #

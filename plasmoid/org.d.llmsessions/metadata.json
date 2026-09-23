@@ -1,8 +1,8 @@
 {
     "KPlugin": {
         "Id": "org.d.llmsessions",
-        "Name": "LLM Box Terminals",
-        "Description": "Remote terminal/screen session manager: multi-box badges, open/rename/new/close sessions.",
+        "Name": "Screen Sessions",
+        "Description": "GNU Screen session viewer/manager for remote boxes: multi-box badges, open/rename/new/close sessions.",
         "Category": "System Information",
         "Version": "0.5.0",
         "License": "GPL-2.0+",

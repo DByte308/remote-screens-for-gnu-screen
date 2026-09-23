@@ -1,7 +1,7 @@
-# LLM Box Terminals
+# Screen Sessions
 
 <p align="center">
-  <img src="logo.png" alt="LLM Box Terminals" width="200">
+  <img src="logo.png" alt="Screen Sessions" width="200">
   <br>
   <img src="icon.png" alt="GNU Screen extension" width="300">
 </p>
@@ -63,7 +63,7 @@ install -m755 scripts/* ~/.local/bin/
 Upgrade in place with `-u`, remove with `-r`:
 `kpackagetool6 -t Plasma/Applet -u plasmoid/org.d.llmsessions`
 
-Then right-click a panel → *Add Widgets* → "LLM Box Terminals".
+Then right-click a panel → *Add Widgets* → "Screen Sessions".
 
 ## Usage
 
