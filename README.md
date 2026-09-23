@@ -1,7 +1,8 @@
 # Terminal Sessions for Idiots (TSfI)
 
 <p align="center">
-  <img src="logo.png" alt="TSfI logo" width="300">
+  <img src="logo.png" alt="TSfI logo" width="300"> <img width="300" alt="image" src="https://github.com/user-attachments/assets/21f6a3bd-7cf6-41cb-801a-06ca6daf3b87" />
+
   <br>
   <img src="icon.png" alt="term glyph" width="100">
 </p>
