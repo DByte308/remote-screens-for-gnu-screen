@@ -20,6 +20,8 @@ PlasmoidItem {
     })
     property bool settingsOpen: false
     property bool configLoading: false
+    property bool configPending: false
+    property int configRevision: 0
 
     // parsed status state
     property int total: -1
@@ -129,6 +131,7 @@ PlasmoidItem {
 
     // config mutations: apply then re-read + re-poll shortly after
     function runConfig(args) {
+        root.configPending = true
         opener.run(root.scriptPath("llm-config-apply") + " " + args)
         applyTimer.restart()
     }
@@ -194,6 +197,8 @@ PlasmoidItem {
         root.online = false
         root.total = -1
         root.sessions = []
+        root.configRevision++
+        root.configPending = false
     }
 
     function parse(out, exitOk) {
@@ -309,12 +314,20 @@ PlasmoidItem {
     Component {
         id: full
         Item {
+            id: fullItem
             Layout.preferredWidth: 480
             Layout.preferredHeight: 520
             Layout.minimumWidth: 420
             Layout.minimumHeight: 420
 
             property string actionMode: ""   // "" | rename | new | close
+
+            Connections {
+                target: root
+                function onConfigRevisionChanged() {
+                    if (root.settingsOpen) fullItem.syncSettingsFields()
+                }
+            }
 
             function selSessionId() {
                 var i = combo.currentIndex
@@ -331,9 +344,9 @@ PlasmoidItem {
                 sUser.text = c ? c.user : ""
                 sPort.text = c ? String(c.port) : "22"
                 sAttach.currentIndex = c && c.mode === "x" ? 1 : 0
-                sEngine.currentIndex = c && c.engine === "herdr" ? 1 : 0
                 sLocal.checked = c && c.host === "local"
                 applyLocalUi()
+                sEngine.currentIndex = c && c.engine === "herdr" ? 1 : 0
                 sPoll.text = String(root.cfg.poll)
             }
 
@@ -346,12 +359,6 @@ PlasmoidItem {
                 if (sLocal.checked) {
                     sHost.text = "local"
                     if (sEngine.currentIndex !== 1) sEngine.currentIndex = 1
-                } else {
-                    // unchecking must restore this connection's real engine,
-                    // otherwise a later Save would stamp 'herdr' onto it
-                    var c = activeConnObj()
-                    var idx = c && c.engine === "herdr" ? 1 : 0
-                    if (sEngine.currentIndex !== idx) sEngine.currentIndex = idx
                 }
             }
 
@@ -458,6 +465,7 @@ PlasmoidItem {
                     PlasmaComponents3.ComboBox {
                         id: connCombo
                         Layout.fillWidth: true
+                        enabled: !root.configPending
                         model: root.cfg.conns
                         textRole: "name"
                         currentIndex: {
@@ -468,7 +476,10 @@ PlasmoidItem {
                         onActivated: idx => {
                             if (idx >= 0 && idx < root.cfg.conns.length) {
                                 var n = root.cfg.conns[idx].name
-                                if (n !== root.cfg.active) root.setActive(n)
+                                if (n !== root.cfg.active) {
+                                    root.settingsOpen = false // discard edits for the previous box
+                                    root.setActive(n)
+                                }
                             }
                         }
                     }
@@ -541,7 +552,13 @@ PlasmoidItem {
                         PlasmaComponents3.CheckBox {
                             id: sLocal
                             text: "This PC (local Herdr) — no SSH"
-                            onToggled: applyLocalUi()
+                            onToggled: {
+                                applyLocalUi()
+                                if (!checked) {
+                                    var c = activeConnObj()
+                                    sEngine.currentIndex = c && c.engine === "herdr" ? 1 : 0
+                                }
+                            }
                         }
                         Item { Layout.fillWidth: true }
                     }
