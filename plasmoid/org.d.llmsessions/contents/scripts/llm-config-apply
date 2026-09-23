@@ -2,7 +2,7 @@
 # llm-config-apply — validate & write Screen Sessions widget settings.
 # Takes a SEQUENCE of subcommands applied together, then written atomically
 # (temp-file + rename) only if every step validated:
-#   llm-config-apply set-conn NAME HOST USER PORT MODE [set-active NAME] [remove-conn NAME] [set-poll SECONDS]
+#   llm-config-apply set-conn NAME HOST USER PORT MODE [--engine screen|herdr] [set-active NAME] [remove-conn NAME] [set-poll SECONDS]
 #
 # Values:
 #   NAME    -> [A-Za-z_][A-Za-z0-9_-]{0,31}
@@ -10,6 +10,7 @@
 #   USER    -> [A-Za-z0-9._-]
 #   PORT    -> 1-65535
 #   MODE    -> dr | x
+#   ENGINE  -> screen | herdr   (default: screen)
 #   SECONDS -> 10-3600
 # Writes to ~/.config/llmsessions/box.conf (override with $LLMBOX_CONF).
 # The file is PARSED, never sourced (conn values contain '|' = shell pipes).
@@ -48,14 +49,18 @@ while [ "$i" -lt "${#args[@]}" ]; do
   cmd="${args[$i]}"; i=$((i+1))
   case "$cmd" in
     set-conn)
-      NAME="${args[$i]:-}"; H="${args[$i+1]:-}"; U="${args[$i+2]:-}"; P="${args[$i+3]:-}"; M="${args[$i+4]:-}"
+      NAME="${args[$i]:-}"; H="${args[$i+1]:-}"; U="${args[$i+2]:-}"; P="${args[$i+3]:-}"; M="${args[$i+4]:-}"; EN="screen"
       i=$((i+5))
+      if [ "${args[$i]:-}" = "--engine" ]; then
+        EN="${args[$i+1]:-}"; i=$((i+2))
+      fi
       case "$NAME" in ''|*[!A-Za-z0-9_-]*|[!A-Za-z_]*) echo "invalid connection name '$NAME'"; err=1;; esac
       [[ "$H" =~ ^[A-Za-z0-9._:-]+$ ]] || { echo "invalid HOST '$H'"; err=1; }
       [[ "$U" =~ ^[A-Za-z0-9._-]+$ ]]  || { echo "invalid USER '$U'"; err=1; }
       [[ "$P" =~ ^[0-9]+$ ]] && [ "$P" -ge 1 ] && [ "$P" -le 65535 ] || { echo "invalid PORT '$P'"; err=1; }
       case "$M" in dr|x) ;; *) echo "invalid MODE '$M'"; err=1;; esac
-      [ "$err" -eq 0 ] && CONF_CONN["$NAME"]="$H|$U|$P|$M"
+      case "$EN" in screen|herdr) ;; *) echo "invalid ENGINE '$EN' (screen|herdr)"; err=1;; esac
+      [ "$err" -eq 0 ] && CONF_CONN["$NAME"]="$H|$U|$P|$M|$EN"
       ;;
     set-active)
       NAME="${args[$i]:-}"; i=$((i+1))
@@ -107,7 +112,7 @@ tmp="${CONF}.tmp.$$"
 {
   echo "# Screen Sessions widget configuration (managed by llm-config-apply / widget gear)"
   echo "# POLL_SECONDS=refresh · ACTIVE=current connection"
-  echo "# CONN_<name>=\"<host>|<user>|<port>|<mode>\"  (mode: dr=detach-then-attach, x=share)"
+  echo "# CONN_<name>=\"<host>|<user>|<port>|<mode>|<engine>\"  (mode: dr=detach-then-attach, x=share; engine: screen|herdr)"
   echo "POLL_SECONDS=${CONF_POLL}"
   echo "ACTIVE=${CONF_ACTIVE}"
   for n in $(printf '%s\n' "${!CONF_CONN[@]}" | sort); do

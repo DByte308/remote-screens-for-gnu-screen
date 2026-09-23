@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# llm-open-herdr — open a Konsole tab that attaches to Herdr on a named box.
+# Usage: llm-open-herdr <connection>      (default: ACTIVE from config)
+# Runs:  konsole --new-tab -e ssh -t <user>@<host> "herdr"
+#        (starts/attaches the box's Herdr TUI inside that SSH terminal)
+# Fire-and-forget (Konsole is nohup'd). Params resolved via llm-config-get.
+
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GET="$SELF_DIR/llm-config-get"
+
+getout="$(bash "$GET" 2>/dev/null)"
+name="${1:-$(printf '%s\n' "$getout" | sed -n 's/^ACTIVE=//p')}"
+[ -z "$name" ] && name="LLM"
+case "$name" in ''|*[!A-Za-z0-9_-]*|[!A-Za-z_]*) echo "invalid connection name '$name'" >&2; exit 2;; esac
+
+entry=$(printf '%s\n' "$getout" | sed -n "s/^CONN_${name}=//p")
+if [ -z "$entry" ]; then
+  echo "unknown connection '$name'" >&2
+  exit 3
+fi
+HOST="${entry%%|*}"; rem="${entry#*|}"; USER="${rem%%|*}"; rem="${rem#*|}"; PORT="${rem%%|*}"
+
+SSHOPT=(-p "$PORT" -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new)
+exec nohup konsole --new-tab -e ssh "${SSHOPT[@]}" -t "${USER}@${HOST}" "herdr" >/dev/null 2>&1 &

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # llm-sessions — read-only status of open terminals on a named box.
 # Usage: llm-sessions [connection]        (default: ACTIVE from config)
+# Engine-aware: engine=screen -> GNU Screen sessions; engine=herdr -> Herdr panes/tabs.
 # Only read-only commands run on the remote side.
 # Params resolved via llm-config-get (single source of truth).
 
@@ -16,12 +17,96 @@ if [ -z "$entry" ]; then
   echo "unknown connection '$name' — see llm-config-get" >&2
   exit 3
 fi
-HOST="${entry%%|*}"; rem="${entry#*|}"; USER="${rem%%|*}"; rem="${rem#*|}"; PORT="${rem%%|*}"; MODE="${rem#*|}"
+HOST="${entry%%|*}"; rem="${entry#*|}"; USER="${rem%%|*}"; rem="${rem#*|}"; PORT="${rem%%|*}"; rem="${rem#*|}"; MODE="${rem%%|*}"; ENGINE="${rem#*|}"
+[ -z "$ENGINE" ] && ENGINE="screen"
 
 TARGET="${USER}@${HOST}"
 SSHOPT=(-p "$PORT")
 TIMEOUT=12
 
+# ============================ engine: herdr ============================
+if [ "$ENGINE" = "herdr" ]; then
+  remote=$(timeout "$TIMEOUT" ssh "${SSHOPT[@]}" -o BatchMode=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR \
+    "$TARGET" '
+      export PATH="$HOME/.local/bin:$PATH"
+      echo "__HERDR__"
+      herdr pane list 2>/dev/null
+      echo "__TABS__"
+      herdr tab list 2>/dev/null
+      echo "__WORKSPACES__"
+      herdr workspace list 2>/dev/null
+      echo "__USERS__"
+      w -h
+      echo "__UPTIME__"
+      uptime
+      echo "__END__"
+    ' 2>/dev/null)
+
+  if [ -z "$remote" ]; then
+    echo "OFFLINE — ${name} (${HOST}) unreachable"
+    exit 1
+  fi
+
+  panes_json=$(printf '%s\n' "$remote" | sed -n '/__HERDR__/,/__TABS__/p' | sed '1d;$d')
+  tabs_json=$(printf '%s\n' "$remote" | sed -n '/__TABS__/,/__WORKSPACES__/p' | sed '1d;$d')
+  ws_json=$(printf '%s\n' "$remote" | sed -n '/__WORKSPACES__/,/__USERS__/p' | sed '1d;$d')
+
+  nusers=$(printf '%s\n' "$remote" | sed -n '/__USERS__/,/__UPTIME__/p' | grep -c 'pts/')
+  up=$(printf '%s\n' "$remote" | sed -n '/__UPTIME__/,$p' | grep -v '__' | head -1)
+  load=$(printf '%s\n' "$up" | grep -o 'load average:.*' | sed 's/load average:[[:space:]]*//')
+  upt=$(printf '%s\n' "$up" | sed -E 's/.*up ([^,]*),.*/\1/; s/ //g')
+
+  block=$(python3 - "$panes_json" "$tabs_json" "$ws_json" <<'EOF'
+import json, sys
+
+raws = sys.argv[1:4]
+if not (any(j.strip() for j in raws)):
+    print("Herdr: (server not responding)")
+    sys.exit(0)
+
+def load(j):
+    try:
+        return (json.loads(j).get("result") or {})
+    except Exception:
+        return {}
+
+P = load(raws[0]); T = load(raws[1]); W = load(raws[2])
+panes = P.get("panes") or []
+tabs = T.get("tabs") or []
+ws = W.get("workspaces") or []
+
+npanes = len(panes); ntabs = len(tabs); nws = len(ws)
+def pl(n): return "" if n == 1 else "s"
+print("Herdr: %d pane%s \u00b7 %d tab%s \u00b7 %d workspace%s" \
+      % (npanes, pl(npanes), ntabs, pl(ntabs), nws, pl(nws)))
+labels = {}
+for w in ws:
+    if w.get("workspace_id"):
+        labels[w["workspace_id"]] = w.get("label") or ""
+for p in panes:
+    pid = p.get("pane_id") or "?"
+    cwd = (p.get("cwd") or "").strip()
+    wslabel = labels.get(p.get("workspace_id") or "", "")
+    rest = ""
+    if cwd:
+        rest += cwd
+    if wslabel:
+        rest += ("  \u00b7  " if rest else "") + "ws " + wslabel
+    print("    %s  [Running]  %s" % (pid, rest))
+EOF
+)
+
+  [ -z "$block" ] && block="Herdr: (no data)"
+
+  echo "${name} (${HOST}) · up ${upt} · load ${load}"
+  echo
+  printf '%s\n' "$block"
+  echo
+  echo "SSH terminals: ${nusers}"
+  exit 0
+fi
+
+# ============================ engine: screen (GNU Screen) ============================
 remote=$(timeout "$TIMEOUT" ssh "${SSHOPT[@]}" -o BatchMode=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR \
   "$TARGET" '
     echo "__SCREENS__"

@@ -16,7 +16,7 @@ PlasmoidItem {
     property var cfg: ({
         active: "LLM",
         poll: 60,
-        conns: [ { name: "LLM", host: "192.0.2.55", user: "user", port: 22, mode: "dr" } ]
+        conns: [ { name: "LLM", host: "192.0.2.55", user: "user", port: 22, mode: "dr", engine: "screen" } ]
     })
     property bool settingsOpen: false
 
@@ -28,10 +28,15 @@ PlasmoidItem {
     property string raw: ""
     property var sessions: []
     property string lastUpdate: ""
+    property string engine: "screen"   // engine of the active connection
+    property int herdrTabs: 0
+    property int herdrWorkspaces: 0
 
-    toolTipMainText: root.cfg.active + " · GNU Screen sessions"
+    toolTipMainText: root.cfg.active + (root.engine === "herdr" ? " · Herdr panes" : " · GNU Screen sessions")
     toolTipSubText: (online
-        ? (total > 0 ? "%1 attached · %2 detached".arg(att).arg(det) : "no sessions running")
+        ? (root.engine === "herdr"
+            ? (total > 0 ? "%1 panes".arg(total) : "no panes running")
+            : (total > 0 ? "%1 attached · %2 detached".arg(att).arg(det) : "no sessions running"))
         : "computer unreachable") + " · updated " + lastUpdate
 
     function statusColor() {
@@ -134,6 +139,11 @@ PlasmoidItem {
         runAction(root.scriptPath("llm-open-screen") + " " + root.cfg.active + " " + id)
     }
 
+    function openHerdr() {
+        // attach the box's Herdr TUI in a new Konsole tab (fire-and-forget)
+        runAction(root.scriptPath("llm-open-herdr") + " " + root.cfg.active)
+    }
+
     // parse the KEY=VALUE output of llm-config-get into cfg
     function parseConfig(out) {
         var m, mm, re
@@ -146,11 +156,12 @@ PlasmoidItem {
         var order = m && m[1].trim().length ? m[1].split(",") : []
 
         var byName = {}
-        re = /^CONN_([A-Za-z_][A-Za-z0-9_-]*)=([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)$/gm
+        re = /^CONN_([A-Za-z_][A-Za-z0-9_-]*)=([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)(?:\|([^|]+))?$/gm
         while ((mm = re.exec(out)) !== null) {
             byName[mm[1]] = {
                 name: mm[1], host: mm[2], user: mm[3],
-                port: Number(mm[4]), mode: mm[5]
+                port: Number(mm[4]), mode: mm[5],
+                engine: (mm[6] || "screen")
             }
         }
 
@@ -164,31 +175,52 @@ PlasmoidItem {
             if (!found) list.push(byName[k])
         }
         if (!list.length) {
-            list.push({ name: "LLM", host: "192.0.2.55", user: "user", port: 22, mode: "dr" })
+            list.push({ name: "LLM", host: "192.0.2.55", user: "user", port: 22, mode: "dr", engine: "screen" })
         }
         cfg.conns = list
         cfg.active = activeName || list[0].name
+        var acon = activeConn()
+        root.engine = acon && acon.engine ? acon.engine : "screen"
     }
 
     function parse(out, exitOk) {
         raw = out
-        var m = out.match(/Screen:\s*(\d+)\s*open\s*—\s*(\d+)\s*attached\s*·\s*(\d+)\s*detached/)
-        if (m) {
-            total = Number(m[1]); att = Number(m[2]); det = Number(m[3])
-        } else {
-            total = -1
-        }
         online = exitOk && out.length > 0 && out.indexOf("OFFLINE") === -1
 
         var list = []
-        var re = /^\s+([0-9]+\.[\w.-]+)\s+\[(Attached|Detached)\]\s*$/gm
         var mm
-        while ((mm = re.exec(out)) !== null) {
-            list.push({
-                id: mm[1],
-                status: mm[2],
-                label: (mm[2] === "Attached" ? "● " : "○ ") + mm[1]
-            })
+
+        if (root.engine === "herdr") {
+            var mh = out.match(/Herdr:\s*(\d+)\s+pane?s?\s*·\s*(\d+)\s+tab?s?\s*·\s*(\d+)\s+workspace?s?/)
+            if (mh) {
+                total = Number(mh[1]); herdrTabs = Number(mh[2]); herdrWorkspaces = Number(mh[3])
+                att = total; det = 0
+            } else {
+                total = -1
+            }
+            var reH = /^\s+([A-Za-z0-9_:-]+)\s+\[Running\]\s*(.*)$/gm
+            while ((mm = reH.exec(out)) !== null) {
+                list.push({
+                    id: mm[1],
+                    status: "Running",
+                    label: "● " + mm[1] + (mm[2].length ? "  " + mm[2] : "")
+                })
+            }
+        } else {
+            var m = out.match(/Screen:\s*(\d+)\s*open\s*—\s*(\d+)\s*attached\s*·\s*(\d+)\s*detached/)
+            if (m) {
+                total = Number(m[1]); att = Number(m[2]); det = Number(m[3])
+            } else {
+                total = -1
+            }
+            var re = /^\s+([0-9]+\.[\w.-]+)\s+\[(Attached|Detached)\]\s*$/gm
+            while ((mm = re.exec(out)) !== null) {
+                list.push({
+                    id: mm[1],
+                    status: mm[2],
+                    label: (mm[2] === "Attached" ? "● " : "○ ") + mm[1]
+                })
+            }
         }
         sessions = list
 
@@ -253,7 +285,9 @@ PlasmoidItem {
                 PlasmaComponents3.Label {
                     id: label
                     visible: root.online && root.total >= 0
-                    text: root.total >= 0 ? root.att + "↑ " + root.det + "↓" : "—"
+                    text: root.total >= 0
+                          ? (root.engine === "herdr" ? String(root.total) : root.att + "↑ " + root.det + "↓")
+                          : "—"
                     Layout.alignment: Qt.AlignVCenter
                     color: Kirigami.Theme.textColor
                 }
@@ -287,6 +321,7 @@ PlasmoidItem {
                 sUser.text = c ? c.user : ""
                 sPort.text = c ? String(c.port) : "22"
                 sAttach.currentIndex = c && c.mode === "x" ? 1 : 0
+                sEngine.currentIndex = c && c.engine === "herdr" ? 1 : 0
                 sPoll.text = String(root.cfg.poll)
             }
 
@@ -299,7 +334,8 @@ PlasmoidItem {
                 if (!u || !/^[A-Za-z0-9._-]+$/.test(u)) { sMsg.text = "Enter a valid SSH username."; return }
                 if (!/^\d+$/.test(p) || Number(p) < 1 || Number(p) > 65535) { sMsg.text = "Port must be 1–65535"; return }
                 if (!/^\d+$/.test(pol) || Number(pol) < 10 || Number(pol) > 3600) { sMsg.text = "Refresh interval must be 10–3600 seconds."; return }
-                var cmd = "set-conn " + n + " " + h + " " + u + " " + p + " " + m
+                var en = sEngine.currentIndex === 1 ? "herdr" : "screen"
+                var cmd = "set-conn " + n + " " + h + " " + u + " " + p + " " + m + " --engine " + en
                 if (n !== root.cfg.active) cmd += " set-active " + n
                 cmd += " set-poll " + pol
                 root.runConfig(cmd)
@@ -338,7 +374,9 @@ PlasmoidItem {
                         }
                         PlasmaComponents3.Label {
                             text: root.online
-                                   ? "%1 attached · %2 detached".arg(root.att).arg(root.det)
+                                   ? (root.engine === "herdr"
+                                        ? "%1 panes · %2 tabs".arg(root.total).arg(root.herdrTabs)
+                                        : "%1 attached · %2 detached".arg(root.att).arg(root.det))
                                    : "computer unreachable"
                             color: Kirigami.Theme.disabledTextColor
                         }
@@ -449,6 +487,20 @@ PlasmoidItem {
 
                     RowLayout {
                         Layout.fillWidth: true
+                        PlasmaComponents3.Label { text: "Engine:" }
+                        PlasmaComponents3.ComboBox {
+                            id: sEngine
+                            Layout.fillWidth: true
+                            model: [
+                                { value: "screen", text: "GNU Screen — classic sessions" },
+                                { value: "herdr",  text: "Herdr — panes & tabs (socket API)" }
+                            ]
+                            textRole: "text"; valueRole: "value"
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
                         Layout.topMargin: Kirigami.Units.smallSpacing
                         PlasmaComponents3.Button { text: "Save"; onClicked: saveSettings() }
                         PlasmaComponents3.Button { text: "Cancel"; onClicked: root.settingsOpen = false }
@@ -459,8 +511,9 @@ PlasmoidItem {
                     }
                 }
 
-                // ---- session picker + actions ----
+                // ---- session picker + actions (screen only) ----
                 RowLayout {
+                    visible: root.engine !== "herdr"
                     Layout.fillWidth: true
                     spacing: Kirigami.Units.smallSpacing
                     PlasmaComponents3.Label { text: "Open:"; color: Kirigami.Theme.textColor }
@@ -501,9 +554,32 @@ PlasmoidItem {
                     }
                 }
 
+                // ---- herdr quick access (engine=herdr) ----
+                RowLayout {
+                    visible: root.engine === "herdr"
+                    Layout.fillWidth: true
+                    spacing: Kirigami.Units.smallSpacing
+                    PlasmaComponents3.Label { text: "Herdr:"; color: Kirigami.Theme.textColor }
+                    PlasmaComponents3.Label {
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        color: Kirigami.Theme.disabledTextColor
+                        text: root.online
+                              ? (root.total >= 0
+                                  ? "%1 panes · %2 tabs · %3 workspaces".arg(root.total).arg(root.herdrTabs).arg(root.herdrWorkspaces)
+                                  : "no panes")
+                              : "server unreachable"
+                    }
+                    PlasmaComponents3.Button {
+                        text: "Open Herdr…"
+                        enabled: root.online
+                        onClicked: root.openHerdr()
+                    }
+                }
+
                 // ---- action input bar ----
                 RowLayout {
-                    visible: actionMode !== ""
+                    visible: actionMode !== "" && root.engine !== "herdr"
                     Layout.fillWidth: true
                     spacing: Kirigami.Units.smallSpacing
 

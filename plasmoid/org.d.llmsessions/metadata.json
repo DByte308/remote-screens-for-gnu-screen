@@ -1,10 +1,10 @@
 {
     "KPlugin": {
         "Id": "org.d.llmsessions",
-        "Name": "Remote Screens for GNU Screen",
-        "Description": "See and manage GNU Screen sessions on remote computers from your Plasma panel.",
+        "Name": "Terminal Sessions for Idiots",
+        "Description": "See and manage GNU Screen sessions and Herdr panes on remote computers from your Plasma panel.",
         "Category": "System Information",
-        "Version": "0.6.0",
+        "Version": "0.7.0",
         "License": "GPL-2.0+",
         "Authors": [
             { "Name": "d", "Email": "d@local" }
