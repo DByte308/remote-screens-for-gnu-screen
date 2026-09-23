@@ -337,8 +337,8 @@ PlasmoidItem {
 
             function activeConnObj() { return root.activeConn() }
 
-            function syncSettingsFields() {
-                var c = activeConnObj()
+            function syncSettingsFields(connection) {
+                var c = connection || activeConnObj()
                 sName.text = c ? c.name : ""
                 sHost.text = c ? c.host : ""
                 sUser.text = c ? c.user : ""
@@ -477,7 +477,8 @@ PlasmoidItem {
                             if (idx >= 0 && idx < root.cfg.conns.length) {
                                 var n = root.cfg.conns[idx].name
                                 if (n !== root.cfg.active) {
-                                    root.settingsOpen = false // discard edits for the previous box
+                                    // Discard unsaved edits and show this box's own settings.
+                                    if (root.settingsOpen) syncSettingsFields(root.cfg.conns[idx])
                                     root.setActive(n)
                                 }
                             }
