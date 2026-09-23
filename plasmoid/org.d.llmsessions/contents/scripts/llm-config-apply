@@ -96,7 +96,13 @@ if [ -z "${CONF_CONN[$CONF_ACTIVE]+set}" ]; then
   CONF_ACTIVE="$(printf '%s\n' "${!CONF_CONN[@]}" | sort | head -1)"
 fi
 
-mkdir -p "$(dirname "$CONF")"
+# Keep connection details private, including after subsequent saves.
+umask 077
+mkdir -p "$(dirname "$CONF")" || exit 1
+# Do not change permissions on arbitrary parent directories for LLMBOX_CONF.
+if [ "$CONF" = "$HOME/.config/llmsessions/box.conf" ]; then
+  chmod 700 "$HOME/.config/llmsessions" || exit 1
+fi
 tmp="${CONF}.tmp.$$"
 {
   echo "# Screen Sessions widget configuration (managed by llm-config-apply / widget gear)"
