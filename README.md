@@ -7,7 +7,6 @@
   <img src="icon.png" alt="term glyph" width="100">
 </p>
 
-*Also known as TSfI. Formerly "Remote Screens for GNU Screen".*
 
 TSfI keeps your remote terminal sessions within reach. It is a KDE Plasma 6
 panel widget that shows what is running on remote computers and lets you jump
