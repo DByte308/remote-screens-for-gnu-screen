@@ -740,17 +740,31 @@ PlasmoidItem {
                     }
                 }
 
-                // ---- status text ----
-                PlasmaComponents3.ScrollView {
+                // ---- status text with a small monochrome rocket in the corner ----
+                Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    PlasmaComponents3.TextArea {
-                        text: root.raw
-                        readOnly: true
-                        selectByMouse: true
-                        font.family: "monospace"
-                        font.pixelSize: 11
-                        wrapMode: TextEdit.Wrap
+                    PlasmaComponents3.ScrollView {
+                        anchors.fill: parent
+                        PlasmaComponents3.TextArea {
+                            text: root.raw
+                            readOnly: true
+                            selectByMouse: true
+                            font.family: "monospace"
+                            font.pixelSize: 11
+                            rightPadding: 58 // leave room for the icon, even when text wraps
+                            wrapMode: TextEdit.Wrap
+                        }
+                    }
+                    Image {
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.margins: 10
+                        width: 42
+                        height: 42
+                        source: Qt.resolvedUrl("../images/rocket.svg")
+                        fillMode: Image.PreserveAspectFit
+                        smooth: true
                     }
                 }
 
