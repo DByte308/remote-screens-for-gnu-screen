@@ -1,9 +1,9 @@
 # Screen Sessions
 
 <p align="center">
-  <img src="logo.png" alt="Screen Sessions" width="200">
+  <img src="logo.png" alt="Screen Sessions" width="300">
   <br>
-  <img src="icon.png" alt="GNU Screen extension" width="300">
+  <img src="icon.png" alt="GNU Screen extension" width="100">
 </p>
 
 A KDE Plasma 6 panel widget that keeps an eye on the open terminals of one or
