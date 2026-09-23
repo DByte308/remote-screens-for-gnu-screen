@@ -160,8 +160,9 @@ PlasmoidItem {
     // parse the KEY=VALUE output of llm-config-get into cfg
     function parseConfig(out) {
         var m, mm, re
+        var poll = cfg.poll
         m = /^POLL_SECONDS=(\d+)$/m.exec(out)
-        if (m) cfg.poll = Math.min(3600, Math.max(10, Number(m[1])))
+        if (m) poll = Math.min(3600, Math.max(10, Number(m[1])))
 
         m = /^ACTIVE=(.+)$/m.exec(out)
         var activeName = m ? m[1].trim() : ""
@@ -169,7 +170,7 @@ PlasmoidItem {
         var order = m && m[1].trim().length ? m[1].split(",") : []
 
         var byName = {}
-        re = /^CONN_([A-Za-z_][A-Za-z0-9_-]*)=([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)(?:\|([^|]+))?$/gm
+        re = /^CONN_([A-Za-z_][A-Za-z0-9_-]*)=([^|\r\n]+)\|([^|\r\n]+)\|([^|\r\n]+)\|([^|\r\n]+)(?:\|([^|\r\n]+))?$/gm
         while ((mm = re.exec(out)) !== null) {
             byName[mm[1]] = {
                 name: mm[1], host: mm[2], user: mm[3],
@@ -190,10 +191,15 @@ PlasmoidItem {
         if (!list.length) {
             list.push({ name: "LLM", host: "192.0.2.55", user: "user", port: 22, mode: "dr", engine: "screen" })
         }
-        cfg.conns = list
-        cfg.active = activeName || list[0].name
-        var acon = activeConn()
-        root.engine = acon && acon.engine ? acon.engine : "screen"
+        var selected = activeName || list[0].name
+        var acon = list[0]
+        for (var j = 0; j < list.length; j++) {
+            if (list[j].name === selected) { acon = list[j]; break }
+        }
+        // Assign the whole object: mutating fields of a QML var does not
+        // notify bindings such as the engine-specific action row.
+        root.cfg = { active: acon.name, poll: poll, conns: list }
+        root.engine = acon.engine || "screen"
         root.online = false
         root.total = -1
         root.sessions = []
