@@ -119,3 +119,15 @@ the connection through `llm-config-get` output (single source of truth).
 - PRACTICE: snapshot `~/.config/llmsessions/box.conf` (or pass `LLMBOX_CONF`)
   before any `llm-config-apply` against the real config, and re-verify
   `llm-config-get` after. Engine drift was caught by one such diff.
+
+## v0.7.2 fix: engine drift via the local-Ui checkbox
+- Symptom: `CONN_LLM` silently flipped from `screen` to `herdr` twice (badge
+  counted the box's Herdr panes instead of its Screen sessions).
+- Cause: `applyLocalUi()` forced the Engine combo to Herdr when "This PC
+  (local Herdr)" was checked, but on uncheck only re-enabled the field and
+  never restored the connection's real engine. Any Save after toggling the
+  checkbox then wrote `--engine herdr` for whatever connection was in the
+  Name field (usually the active one).
+- Fix: on uncheck, `applyLocalUi()` now restores the engine index from the
+  active connection; `newConn()` resets the Engine combo to Screen (default
+  for new remote connections).

@@ -342,6 +342,12 @@ PlasmoidItem {
                 if (sLocal.checked) {
                     sHost.text = "local"
                     if (sEngine.currentIndex !== 1) sEngine.currentIndex = 1
+                } else {
+                    // unchecking must restore this connection's real engine,
+                    // otherwise a later Save would stamp 'herdr' onto it
+                    var c = activeConnObj()
+                    var idx = c && c.engine === "herdr" ? 1 : 0
+                    if (sEngine.currentIndex !== idx) sEngine.currentIndex = idx
                 }
             }
 
@@ -367,7 +373,7 @@ PlasmoidItem {
                 root.runConfig(cmd)
                 sMsg.text = "Saved · refreshing…"
             }
-            function newConn() { sName.text = ""; sHost.text = "…"; sLocal.checked = false; applyLocalUi(); sMsg.text = "Enter a name and host, then select Save." }
+            function newConn() { sName.text = ""; sHost.text = "…"; sLocal.checked = false; sEngine.currentIndex = 0; applyLocalUi(); sMsg.text = "Enter a name and host, then select Save." }
             function delConn() {
                 if (root.cfg.conns.length <= 1) { sMsg.text = "Keep at least one connection."; return }
                 root.runConfig("remove-conn " + root.cfg.active)
