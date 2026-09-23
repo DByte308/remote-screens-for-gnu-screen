@@ -486,6 +486,29 @@ PlasmoidItem {
                     }
                 }
 
+                // ---- herdr quick access (engine=herdr) ----
+                RowLayout {
+                    visible: root.engine === "herdr"
+                    Layout.fillWidth: true
+                    spacing: Kirigami.Units.smallSpacing
+                    PlasmaComponents3.Label { text: "Herdr:"; color: Kirigami.Theme.textColor }
+                    PlasmaComponents3.Label {
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        color: Kirigami.Theme.disabledTextColor
+                        text: root.online
+                              ? (root.total >= 0
+                                  ? "%1 panes · %2 tabs · %3 workspaces".arg(root.total).arg(root.herdrTabs).arg(root.herdrWorkspaces)
+                                  : "no panes")
+                              : "server unreachable"
+                    }
+                    PlasmaComponents3.Button {
+                        text: "Open Herdr…"
+                        enabled: root.online
+                        onClicked: root.openHerdr()
+                    }
+                }
+
                 // ---- settings panel (gear) ----
                 ColumnLayout {
                     visible: root.settingsOpen
@@ -616,29 +639,6 @@ PlasmoidItem {
                                 actionMode = "close"
                             }
                         }
-                    }
-                }
-
-                // ---- herdr quick access (engine=herdr) ----
-                RowLayout {
-                    visible: root.engine === "herdr"
-                    Layout.fillWidth: true
-                    spacing: Kirigami.Units.smallSpacing
-                    PlasmaComponents3.Label { text: "Herdr:"; color: Kirigami.Theme.textColor }
-                    PlasmaComponents3.Label {
-                        Layout.fillWidth: true
-                        elide: Text.ElideRight
-                        color: Kirigami.Theme.disabledTextColor
-                        text: root.online
-                              ? (root.total >= 0
-                                  ? "%1 panes · %2 tabs · %3 workspaces".arg(root.total).arg(root.herdrTabs).arg(root.herdrWorkspaces)
-                                  : "no panes")
-                              : "server unreachable"
-                    }
-                    PlasmaComponents3.Button {
-                        text: "Open Herdr…"
-                        enabled: root.online
-                        onClicked: root.openHerdr()
                     }
                 }
 

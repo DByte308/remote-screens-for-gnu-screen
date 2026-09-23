@@ -23,7 +23,17 @@ HOST="${entry%%|*}"; rem="${entry#*|}"; USER="${rem%%|*}"; rem="${rem#*|}"; PORT
 
 if [ "$HOST" = "local" ]; then
   # Herdr on this PC: open the local TUI (attaches to the local server socket)
-  nohup konsole --new-tab -e bash -c "export PATH=\$HOME/.local/bin:\$PATH; exec herdr" >/dev/null 2>&1 &
+  # Keep the tab open on failure so the actual Herdr error is visible.
+  nohup konsole --new-tab -e bash -c '
+    export PATH="$HOME/.local/bin:$PATH"
+    herdr
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+      printf "\nHerdr exited with status %s. Press Enter to close.\n" "$rc"
+      read -r _
+    fi
+    exit "$rc"
+  ' >/dev/null 2>&1 &
   exit 0 # do not fall through into the remote SSH branch
 fi
 
