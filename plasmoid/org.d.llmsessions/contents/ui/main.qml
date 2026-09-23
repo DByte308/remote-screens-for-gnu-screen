@@ -19,6 +19,7 @@ PlasmoidItem {
         conns: [ { name: "LLM", host: "192.0.2.55", user: "user", port: 22, mode: "dr", engine: "screen" } ]
     })
     property bool settingsOpen: false
+    property bool configLoading: false
 
     // parsed status state
     property int total: -1
@@ -98,9 +99,12 @@ PlasmoidItem {
             var out = data.stdout !== undefined ? String(data.stdout) : ""
             root.parseConfig(String(out))
             configSource.disconnectSource(sourceName)
+            root.configLoading = false
+            root.pollNow()
         }
 
         function run() {
+            root.configLoading = true
             configSource.connectSource(root.scriptPath("llm-config-get"))
         }
     }
@@ -120,7 +124,7 @@ PlasmoidItem {
         }
     }
 
-    function pollNow() { execer.run() }
+    function pollNow() { if (!root.configLoading) execer.run() }
     function reloadConfig() { configSource.run() }
 
     // config mutations: apply then re-read + re-poll shortly after
@@ -136,7 +140,7 @@ PlasmoidItem {
         actionTimer.restart()
     }
 
-    Timer { id: applyTimer; interval: 800; onTriggered: { root.reloadConfig(); root.pollNow() } }
+    Timer { id: applyTimer; interval: 800; onTriggered: root.reloadConfig() }
     Timer { id: actionTimer; interval: 900; onTriggered: root.pollNow() }
 
     function openSession(index) {
@@ -187,6 +191,9 @@ PlasmoidItem {
         cfg.active = activeName || list[0].name
         var acon = activeConn()
         root.engine = acon && acon.engine ? acon.engine : "screen"
+        root.online = false
+        root.total = -1
+        root.sessions = []
     }
 
     function parse(out, exitOk) {
@@ -241,10 +248,7 @@ PlasmoidItem {
         onTriggered: root.pollNow()
     }
 
-    Component.onCompleted: {
-        root.reloadConfig()
-        root.pollNow()
-    }
+    Component.onCompleted: root.reloadConfig()
 
     // ---------- self-drawn terminal glyph ----------
     Component {

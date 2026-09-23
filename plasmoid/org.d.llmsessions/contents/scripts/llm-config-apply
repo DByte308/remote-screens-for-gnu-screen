@@ -11,7 +11,7 @@
 #   USER    -> [A-Za-z0-9._-] (ignored when HOST=local)
 #   PORT    -> 1-65535 (ignored when HOST=local)
 #   MODE    -> dr | x
-#   ENGINE  -> screen | herdr   (default: screen)
+#   ENGINE  -> screen | herdr   (new connections default to screen; updates retain engine)
 #   SECONDS -> 10-3600
 # Writes to ~/.config/llmsessions/box.conf (override with $LLMBOX_CONF).
 # The file is PARSED, never sourced (conn values contain '|' = shell pipes).
@@ -51,6 +51,8 @@ while [ "$i" -lt "${#args[@]}" ]; do
   case "$cmd" in
     set-conn)
       NAME="${args[$i]:-}"; H="${args[$i+1]:-}"; U="${args[$i+2]:-}"; P="${args[$i+3]:-}"; M="${args[$i+4]:-}"; EN="screen"
+      # Updating a connection without --engine must not silently change it.
+      case "${CONF_CONN[$NAME]:-}" in *'|herdr') EN="herdr";; esac
       i=$((i+5))
       if [ "${args[$i]:-}" = "--engine" ]; then
         EN="${args[$i+1]:-}"; i=$((i+2))

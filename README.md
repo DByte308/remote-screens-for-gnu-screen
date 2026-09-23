@@ -136,7 +136,8 @@ Set `LLMBOX_CONF` to use another config file, such as when testing. The
 supported `llm-config-apply` operations are
 `set-conn NAME HOST USER PORT MODE [--engine screen|herdr]`,
 `set-active NAME`, `remove-conn NAME`, and `set-poll SECONDS`; you can
-combine operations in one call.
+combine operations in one call. Existing connections keep their engine when
+`--engine` is omitted; new connections default to GNU Screen.
 
 ## Notes
 

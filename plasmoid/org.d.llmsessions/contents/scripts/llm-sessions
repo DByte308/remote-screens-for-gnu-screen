@@ -33,40 +33,41 @@ if [ "$ENGINE" = "herdr" ]; then
 
   if [ -n "$LOCAL" ]; then
     # Herdr server on this PC: talk to its local socket directly, no SSH
-    remote=$( /bin/sh -c '
+    remote=$(timeout "$TIMEOUT" /bin/sh -c '
       export PATH="$HOME/.local/bin:$PATH"
       echo "__HERDR__"
-      herdr pane list 2>/dev/null
+      herdr pane list 2>/dev/null || exit 1
       echo "__TABS__"
-      herdr tab list 2>/dev/null
+      herdr tab list 2>/dev/null || exit 1
       echo "__WORKSPACES__"
-      herdr workspace list 2>/dev/null
+      herdr workspace list 2>/dev/null || exit 1
       echo "__USERS__"
       echo "__UPTIME__"
       uptime
       echo "__END__"
     ' 2>/dev/null)
+    rc=$?
   else
     remote=$(timeout "$TIMEOUT" ssh "${SSHOPT[@]}" -o BatchMode=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR \
       "$TARGET" '
         export PATH="$HOME/.local/bin:$PATH"
         echo "__HERDR__"
-        herdr pane list 2>/dev/null
+        herdr pane list 2>/dev/null || exit 1
         echo "__TABS__"
-        herdr tab list 2>/dev/null
+        herdr tab list 2>/dev/null || exit 1
         echo "__WORKSPACES__"
-        herdr workspace list 2>/dev/null
+        herdr workspace list 2>/dev/null || exit 1
         echo "__USERS__"
         w -h
         echo "__UPTIME__"
         uptime
         echo "__END__"
       ' 2>/dev/null)
-
-    if [ -z "$remote" ]; then
-      echo "OFFLINE — ${name} (${HOST}) unreachable"
-      exit 1
-    fi
+    rc=$?
+  fi
+  if [ "$rc" -ne 0 ] || [ -z "$remote" ]; then
+    echo "OFFLINE — ${name} (${DISPHOST}) unreachable or Herdr not responding"
+    exit 1
   fi
 
   panes_json=$(printf '%s\n' "$remote" | sed -n '/__HERDR__/,/__TABS__/p' | sed '1d;$d')
