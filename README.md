@@ -87,4 +87,4 @@ For example, `llm-sessions PC1` lists sessions on the connection called PC1. Set
 
 The widget is packaged in `plasmoid/org.d.llmsessions/`. The top-level `scripts/` directory contains optional CLI copies of the same scripts bundled with the widget. Development notes and Plasma-specific troubleshooting live in [`docs/PROBLEMS-FINDINGS.md`](docs/PROBLEMS-FINDINGS.md).
 
-Licensed under GPL-2.0-or-later.
+Licensed under GPL-2.0-or-later. This thing is 100% Vibecodet btw
