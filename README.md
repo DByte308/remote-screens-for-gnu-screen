@@ -20,7 +20,7 @@ Remote Screens uses SSH to talk to GNU Screen on each computer. It does not crea
 
 ## Before you start
 
-You need KDE Plasma 6 and Konsole on your desktop, plus GNU Screen and SSH access on each remote computer. Set up SSH key authentication so you can connect without an interactive password prompt. For example, make sure `ssh user@your-host screen -ls` works from your desktop before installing the widget.
+You need KDE Plasma 6 and Konsole on your desktop, plus GNU Screen and SSH access on each remote computer. Set up SSH key authentication so you can connect without an interactive password prompt. For example, make sure `ssh user@your-host screen -ls` works from your desktop before installing the widget. Editors Not: I know this i unsafe af but im L A Z Y. 
 
 ## Install
 
