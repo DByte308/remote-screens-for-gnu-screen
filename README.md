@@ -1,7 +1,9 @@
 # LLM Box Terminals
 
-A KDE Plasma 6 panel widget to view and manage GNU **screen** sessions on one or
-more remote machines over SSH.
+A KDE Plasma 6 panel widget that keeps an eye on the open terminals of one or
+more remote machines and lets you manage them from your desktop: see which
+GNU Screen sessions are running and whether they are attached, open one in a
+Konsole tab, rename it, start a new one, or close it.
 
 ## Features
 
@@ -18,12 +20,29 @@ more remote machines over SSH.
 - Auto-refresh (configurable); all panel copies of the widget share one SSH
   poll per connection.
 
+## Built on GNU Screen
+
+This tool is a front-end to the **GNU Screen** terminal multiplexer running on
+each remote box. It has no session tracking of its own: every piece of
+information it shows and every action it performs goes through `screen` on the
+remote side.
+
+- List sessions: `screen -ls`
+- Open a session: `screen -dr` (pull here) or `screen -x` (share)
+- New terminal: `screen -S <name>`
+- Rename: `screen -X sessionname <newname>`
+- Close: `screen -X quit`
+
+So **GNU Screen must be installed on every machine this connects to**; it is
+the base the tool runs on. Without it there is nothing to list, open, rename,
+or close (the badge just shows no sessions / offline).
+
 ## Requirements
 
 - KDE Plasma 6 (plasmoid / QML applet support)
 - Konsole
 - Passwordless SSH key access to the remote machines
-- GNU Screen installed on the remote machines
+- **GNU Screen on the remote machines** (required base, see above)
 
 ## Install
 
