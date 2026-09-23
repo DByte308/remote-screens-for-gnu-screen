@@ -19,6 +19,7 @@ into it from Konsole. Each connection has an **engine**:
 ## What you can do
 
 - Check the panel badge: for a Screen box it shows attached/detached sessions; for a Herdr box it shows open panes. Green means something is running, amber means reachable but empty, red means unreachable.
+- See each computer's uptime, total CPU usage across all cores, and used/total RAM in the popup. CPU is sampled over 0.2 seconds; RAM counts reclaimable cache as available. Remote figures come from Linux's built-in `/proc` files over the existing SSH connection, without installing another service.
 - Click the badge for details.
 - Screen boxes: pick a session and open it in Konsole, or start/rename/close sessions.
 - Herdr boxes: see a live pane/tab/workspace count and open the Herdr TUI on the box.
