@@ -4,7 +4,7 @@
         "Name": "Remote Screens for GNU Screen",
         "Description": "See and manage GNU Screen sessions on remote computers from your Plasma panel.",
         "Category": "System Information",
-        "Version": "0.5.0",
+        "Version": "0.6.0",
         "License": "GPL-2.0+",
         "Authors": [
             { "Name": "d", "Email": "d@local" }
