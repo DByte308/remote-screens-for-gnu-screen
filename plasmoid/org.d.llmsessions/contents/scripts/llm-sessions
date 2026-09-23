@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# llm-sessions — read-only status of open terminals on a named box.
+# Usage: llm-sessions [connection]        (default: ACTIVE from config)
+# Only read-only commands run on the remote side.
+# Params resolved via llm-config-get (single source of truth).
+
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GET="$SELF_DIR/llm-config-get"
+
+getout="$(bash "$GET" 2>/dev/null)"
+name="${1:-$(printf '%s\n' "$getout" | sed -n 's/^ACTIVE=//p')}"
+[ -z "$name" ] && name="LLM"
+
+entry=$(printf '%s\n' "$getout" | sed -n "s/^CONN_${name}=//p")
+if [ -z "$entry" ]; then
+  echo "unknown connection '$name' — see llm-config-get" >&2
+  exit 3
+fi
+HOST="${entry%%|*}"; rem="${entry#*|}"; USER="${rem%%|*}"; rem="${rem#*|}"; PORT="${rem%%|*}"; MODE="${rem#*|}"
+
+TARGET="${USER}@${HOST}"
+SSHOPT=(-p "$PORT")
+TIMEOUT=12
+
+remote=$(timeout "$TIMEOUT" ssh "${SSHOPT[@]}" -o BatchMode=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR \
+  "$TARGET" '
+    echo "__SCREENS__"
+    screen -ls 2>/dev/null
+    echo "__USERS__"
+    w -h
+    echo "__UPTIME__"
+    uptime
+    echo "__PROCS__"
+    ps -eo comm | grep -c "^[l]lama-server" || true
+    ps -eo comm | grep -c "^[n]8n" || true
+    ps -eo comm | grep -c "^[o]llama" || true
+    echo "__END__"
+' 2>/dev/null)
+
+if [ -z "$remote" ]; then
+  echo "OFFLINE — ${name} (${HOST}) unreachable"
+  exit 1
+fi
+
+# --- parse screen sessions ---
+screens=$(printf '%s\n' "$remote" | sed -n '/__SCREENS__/,/__USERS__/p' | grep -E '^[[:space:]]*[0-9]+\.[^[:space:]]+')
+attached=0; detached=0; slist=""
+if [ -n "$screens" ]; then
+  attached=$(printf '%s\n' "$screens" | grep -c -i 'Attached')
+  detached=$(printf '%s\n' "$screens" | grep -c -i 'Detached')
+  slist=$(printf '%s\n' "$screens" | sed -E 's/^[[:space:]]*//; s/[[:space:]]*\(([A-Za-z]+)\)/  [\1]/' )
+fi
+total=$((attached+detached))
+
+# --- users / pts ---
+nusers=$(printf '%s\n' "$remote" | sed -n '/__USERS__/,/__UPTIME__/p' | grep -c 'pts/')
+pts=$(printf '%s\n' "$remote" | sed -n '/__USERS__/,/__UPTIME__/p' | grep -o 'pts/[0-9]*' | sort -u | tr '\n' ' ')
+
+# --- uptime / load ---
+up=$(printf '%s\n' "$remote" | sed -n '/__UPTIME__/,$p' | grep -v '__' | head -1)
+load=$(printf '%s\n' "$up" | grep -o 'load average:.*' | sed 's/load average:[[:space:]]*//')
+upt=$(printf '%s\n' "$up" | sed -E 's/.*up ([^,]*),.*/\1/; s/ //g')
+
+# --- proc counts ---
+procs=$(printf '%s\n' "$remote" | sed -n '/__PROCS__/,/__END__/p' | grep -v '__')
+p_llama=$(printf '%s\n' "$procs" | sed -n '1p')
+p_n8n=$(  printf '%s\n' "$procs" | sed -n '2p')
+p_ollama=$(printf '%s\n' "$procs" | sed -n '3p')
+
+# --- output (human readable for popup / CLI) ---
+echo "LLM box · ${name} (${HOST}) · up ${upt} · load ${load}"
+echo
+if [ "$total" -gt 0 ]; then
+  echo "Screen: ${total} open — ${attached} attached · ${detached} detached"
+  printf '%s\n' "$slist" | sed 's/^/   /'
+else
+  echo "Screen: none open"
+fi
+echo
+echo "SSH terminals: ${nusers} (pts: ${pts})"
+echo "llama-server: ${p_llama}   n8n: ${p_n8n}   ollama: ${p_ollama}"

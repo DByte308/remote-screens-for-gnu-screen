@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# llm-open-screen — open a GNU screen session from a named box in a local Konsole tab.
+# Usage: llm-open-screen <connection> <session-id>
+#        llm-open-screen <session-id>              (uses ACTIVE connection)
+# Attaches to the chosen session via ssh -t; fire-and-forget (Konsole is nohup'd).
+# Params resolved via llm-config-get
+#   mode dr -> screen -dr (detach from box, pull session here)
+#   mode x  -> screen -x  (shared multi-attach; session stays on box too)
+
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GET="$SELF_DIR/llm-config-get"
+
+getout="$(bash "$GET" 2>/dev/null)"
+
+if [ "$#" -ge 2 ]; then
+  name="$1"; SESSION="$2"
+elif [ "$#" -eq 1 ]; then
+  name="$(printf '%s\n' "$getout" | sed -n 's/^ACTIVE=//p')"
+  SESSION="$1"
+else
+  echo "usage: llm-open-screen [connection] session" >&2
+  exit 2
+fi
+[ -z "$name" ] && name="LLM"
+
+# sanitize session: only <pid>.<name> with safe chars, e.g. 608120.anyname
+if ! [[ "$SESSION" =~ ^[0-9]+\.[A-Za-z0-9_.-]+$ ]]; then
+  echo "invalid session: '$SESSION'" >&2
+  exit 2
+fi
+
+entry=$(printf '%s\n' "$getout" | sed -n "s/^CONN_${name}=//p")
+if [ -z "$entry" ]; then
+  echo "unknown connection '$name'" >&2
+  exit 3
+fi
+HOST="${entry%%|*}"; rem="${entry#*|}"; USER="${rem%%|*}"; rem="${rem#*|}"; PORT="${rem%%|*}"; MODE="${rem#*|}"
+
+case "$MODE" in
+  x) attach="-x" ;;
+  *) attach="-dr" ;;
+esac
+
+SSHOPT=(-p "$PORT" -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new)
+exec nohup konsole --new-tab -e ssh "${SSHOPT[@]}" -t "${USER}@${HOST}" "screen $attach $SESSION" \
+  >/dev/null 2>&1 &

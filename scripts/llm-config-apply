@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# llm-config-apply — validate & write LLM Box widget settings.
+# Takes a SEQUENCE of subcommands applied together, then written atomically
+# (temp-file + rename) only if every step validated:
+#   llm-config-apply set-conn NAME HOST USER PORT MODE [set-active NAME] [remove-conn NAME] [set-poll SECONDS]
+#
+# Values:
+#   NAME    -> [A-Za-z_][A-Za-z0-9_-]{0,31}
+#   HOST    -> simple hostname/ip [A-Za-z0-9._:-]
+#   USER    -> [A-Za-z0-9._-]
+#   PORT    -> 1-65535
+#   MODE    -> dr | x
+#   SECONDS -> 10-3600
+# Writes to ~/.config/llmsessions/box.conf (override with $LLMBOX_CONF).
+# The file is PARSED, never sourced (conn values contain '|' = shell pipes).
+# exit 0 on success; 1 if anything is invalid (nothing is written then).
+
+CONF="${LLMBOX_CONF:-$HOME/.config/llmsessions/box.conf}"
+
+CONF_POLL=60; CONF_ACTIVE="LLM"; CONF_LEG_HOST=""; CONF_LEG_USER="user"; CONF_LEG_PORT="22"; CONF_LEG_MODE="dr"
+declare -A CONF_CONN=()
+
+parse_conf() {
+  while IFS= read -r line; do
+    case "$line" in
+      POLL_SECONDS=*) CONF_POLL="${line#*=}" ;;
+      ACTIVE=*)        CONF_ACTIVE="${line#*=}" ;;
+      CONN_*=*)        n="${line%%=*}"; n="${n#CONN_}"; v="${line#*=}"; v="${v%\"}"; v="${v#\"}"; CONF_CONN["$n"]="$v" ;;
+      HOST=*)          CONF_LEG_HOST="${line#*=}" ;;
+      USER=*)          CONF_LEG_USER="${line#*=}" ;;
+      PORT=*)          CONF_LEG_PORT="${line#*=}" ;;
+      ATTACH_MODE=*)   CONF_LEG_MODE="${line#*=}" ;;
+    esac
+  done < "$CONF"
+}
+[ -r "$CONF" ] && parse_conf
+
+# legacy migration: old flat single-box keys -> a "LLM" connection
+if [ "${#CONF_CONN[@]}" -eq 0 ] && [ -n "$CONF_LEG_HOST" ]; then
+  CONF_CONN[LLM]="$CONF_LEG_HOST|$CONF_LEG_USER|$CONF_LEG_PORT|$CONF_LEG_MODE"
+  CONF_ACTIVE="LLM"
+fi
+
+err=0
+i=0
+args=("$@")
+while [ "$i" -lt "${#args[@]}" ]; do
+  cmd="${args[$i]}"; i=$((i+1))
+  case "$cmd" in
+    set-conn)
+      NAME="${args[$i]:-}"; H="${args[$i+1]:-}"; U="${args[$i+2]:-}"; P="${args[$i+3]:-}"; M="${args[$i+4]:-}"
+      i=$((i+5))
+      case "$NAME" in ''|*[!A-Za-z0-9_-]*|[!A-Za-z_]*) echo "invalid connection name '$NAME'"; err=1;; esac
+      [[ "$H" =~ ^[A-Za-z0-9._:-]+$ ]] || { echo "invalid HOST '$H'"; err=1; }
+      [[ "$U" =~ ^[A-Za-z0-9._-]+$ ]]  || { echo "invalid USER '$U'"; err=1; }
+      [[ "$P" =~ ^[0-9]+$ ]] && [ "$P" -ge 1 ] && [ "$P" -le 65535 ] || { echo "invalid PORT '$P'"; err=1; }
+      case "$M" in dr|x) ;; *) echo "invalid MODE '$M'"; err=1;; esac
+      [ "$err" -eq 0 ] && CONF_CONN["$NAME"]="$H|$U|$P|$M"
+      ;;
+    set-active)
+      NAME="${args[$i]:-}"; i=$((i+1))
+      case "$NAME" in ''|*[!A-Za-z0-9_-]*|[!A-Za-z_]*) echo "invalid connection name '$NAME'"; err=1;; esac
+      [ -n "$NAME" ] && [ -n "${CONF_CONN[$NAME]+set}" ] || { echo "no such connection '$NAME'"; err=1; }
+      [ "$err" -eq 0 ] && CONF_ACTIVE="$NAME"
+      ;;
+    remove-conn)
+      NAME="${args[$i]:-}"; i=$((i+1))
+      if [ -n "${CONF_CONN[$NAME]+set}" ]; then
+        unset "CONF_CONN[$NAME]"
+      else
+        echo "no such connection '$NAME'"; err=1
+      fi
+      ;;
+    set-poll)
+      P="${args[$i]:-}"; i=$((i+1))
+      if [[ "$P" =~ ^[0-9]+$ ]] && [ "$P" -ge 10 ] && [ "$P" -le 3600 ]; then
+        CONF_POLL="$P"
+      else
+        echo "invalid POLL_SECONDS '$P'"; err=1
+      fi
+      ;;
+    "")
+      break
+      ;;
+    *)
+      echo "unknown command '$cmd'"; err=1
+      ;;
+  esac
+  [ "$err" -ne 0 ] && break
+done
+
+[ "$err" -ne 0 ] && exit 1
+
+# ensure ACTIVE points at a real connection (else first available)
+if [ -z "${CONF_CONN[$CONF_ACTIVE]+set}" ]; then
+  CONF_ACTIVE="$(printf '%s\n' "${!CONF_CONN[@]}" | sort | head -1)"
+fi
+
+mkdir -p "$(dirname "$CONF")"
+tmp="${CONF}.tmp.$$"
+{
+  echo "# LLM Box widget configuration (managed by llm-config-apply / widget gear)"
+  echo "# POLL_SECONDS=refresh · ACTIVE=current connection"
+  echo "# CONN_<name>=\"<host>|<user>|<port>|<mode>\"  (mode: dr=detach-then-attach, x=share)"
+  echo "POLL_SECONDS=${CONF_POLL}"
+  echo "ACTIVE=${CONF_ACTIVE}"
+  for n in $(printf '%s\n' "${!CONF_CONN[@]}" | sort); do
+    printf 'CONN_%s="%s"\n' "$n" "${CONF_CONN[$n]}"
+  done
+} > "$tmp" && mv "$tmp" "$CONF"
+echo "saved $CONF"

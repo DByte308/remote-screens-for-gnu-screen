@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# llm-config-get — print the effective LLM Box widget config as KEY=VALUE lines.
+# Reads ~/.config/llmsessions/box.conf (overridable with $LLMBOX_CONF).
+# Used by the widget to prefill the settings panel.
+#
+# Format of ~/.config/llmsessions/box.conf:
+#   POLL_SECONDS=60
+#   ACTIVE=LLM
+#   CONN_<name>="<host>|<user>|<port>|<mode>"     (mode: dr | x)
+# The file is PARSED here (never sourced — conn values contain '|' which
+# would otherwise become shell pipes).
+# Legacy single-box files (HOST=/USER=/PORT=/ATTACH_MODE=) are exposed as a
+# connection named "LLM".
+
+CONF="${LLMBOX_CONF:-$HOME/.config/llmsessions/box.conf}"
+
+CONF_POLL=60; CONF_ACTIVE=""; CONF_LEG_HOST=""; CONF_LEG_USER="user"; CONF_LEG_PORT="22"; CONF_LEG_MODE="dr"
+declare -A CONF_CONN=()
+
+parse_conf() {
+  while IFS= read -r line; do
+    case "$line" in
+      POLL_SECONDS=*) CONF_POLL="${line#*=}" ;;
+      ACTIVE=*)        CONF_ACTIVE="${line#*=}" ;;
+      CONN_*=*)        n="${line%%=*}"; n="${n#CONN_}"; v="${line#*=}"; v="${v%\"}"; v="${v#\"}"; CONF_CONN["$n"]="$v" ;;
+      HOST=*)          CONF_LEG_HOST="${line#*=}" ;;
+      USER=*)          CONF_LEG_USER="${line#*=}" ;;
+      PORT=*)          CONF_LEG_PORT="${line#*=}" ;;
+      ATTACH_MODE=*)   CONF_LEG_MODE="${line#*=}" ;;
+    esac
+  done < "$CONF"
+}
+[ -r "$CONF" ] && parse_conf
+
+# --- legacy single-box config → virtual "LLM" connection ---
+if [ "${#CONF_CONN[@]}" -eq 0 ] && [ -n "$CONF_LEG_HOST" ]; then
+  printf 'POLL_SECONDS=%s\nACTIVE=LLM\nCONNECTIONS=LLM\nCONN_LLM=%s|%s|%s|%s\nACTIVE_HOST=%s\nACTIVE_USER=%s\nACTIVE_PORT=%s\nACTIVE_MODE=%s\n' \
+    "$CONF_POLL" "$CONF_LEG_HOST" "$CONF_LEG_USER" "$CONF_LEG_PORT" "$CONF_LEG_MODE" \
+    "$CONF_LEG_HOST" "$CONF_LEG_USER" "$CONF_LEG_PORT" "$CONF_LEG_MODE"
+  exit 0
+fi
+
+# ordered names, deterministic
+mapfile -t names < <(printf '%s\n' "${!CONF_CONN[@]}" | sort)
+
+[ -z "$CONF_ACTIVE" ] && CONF_ACTIVE="${names[0]:-}"
+# if ACTIVE isn't one of the connections, fall back to the first
+if [ -z "${CONF_CONN[$CONF_ACTIVE]+set}" ]; then
+  CONF_ACTIVE="${names[0]:-}"
+fi
+
+entry="${CONF_CONN[$CONF_ACTIVE]}"
+AH="${entry%%|*}"; rem="${entry#*|}"; AU="${rem%%|*}"; rem="${rem#*|}"; AP="${rem%%|*}"; AM="${rem#*|}"
+
+CONNECTIONS=$(printf '%s\n' "${names[@]}" | paste -sd, -)
+printf 'POLL_SECONDS=%s\n' "$CONF_POLL"
+printf 'ACTIVE=%s\nCONNECTIONS=%s\n' "$CONF_ACTIVE" "$CONNECTIONS"
+printf 'ACTIVE_HOST=%s\nACTIVE_USER=%s\nACTIVE_PORT=%s\nACTIVE_MODE=%s\n' "$AH" "$AU" "$AP" "$AM"
+for n in "${names[@]}"; do
+  printf 'CONN_%s=%s\n' "$n" "${CONF_CONN[$n]}"
+done

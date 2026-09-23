@@ -1,0 +1,17 @@
+{
+    "KPlugin": {
+        "Id": "org.d.llmsessions",
+        "Name": "LLM Box Terminals",
+        "Description": "Remote terminal/screen session manager: multi-box badges, open/rename/new/close sessions.",
+        "Category": "System Information",
+        "Version": "0.5.0",
+        "License": "GPL-2.0+",
+        "Authors": [
+            { "Name": "d", "Email": "d@local" }
+        ],
+        "Website": ""
+    },
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-KDE-ParentApp": "org.kde.plasmashell"
+}

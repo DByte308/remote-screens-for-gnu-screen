@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# llm-rename — rename a GNU screen session on a named box.
+# Usage: llm-rename <connection> <session-id> <new-name>
+# e.g.   llm-rename LLM 608120.anyname mywork
+# Works on attached & detached sessions (screen -X sessionname).
+
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GET="$SELF_DIR/llm-config-get"
+
+if [ "$#" -lt 3 ]; then
+  echo "usage: llm-rename <connection> <session-id> <new-name>" >&2
+  exit 2
+fi
+name="$1"; SESSION="$2"; NEWNAME="$3"
+
+[[ "$SESSION" =~ ^[0-9]+\.[A-Za-z0-9_.-]+$ ]] || { echo "invalid session '$SESSION'" >&2; exit 2; }
+[[ "$NEWNAME" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]{0,39}$ ]] || { echo "invalid new name '$NEWNAME'" >&2; exit 2; }
+
+getout="$(bash "$GET" 2>/dev/null)"
+entry=$(printf '%s\n' "$getout" | sed -n "s/^CONN_${name}=//p")
+[ -n "$entry" ] || { echo "unknown connection '$name'" >&2; exit 3; }
+HOST="${entry%%|*}"; rem="${entry#*|}"; USER="${rem%%|*}"; rem="${rem#*|}"; PORT="${rem%%|*}"; MODE="${rem#*|}"
+
+ssh -p "$PORT" -o BatchMode=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new \
+  "${USER}@${HOST}" "screen -S '$SESSION' -X sessionname '$NEWNAME'" 2>/dev/null
+rc=$?
+[ "$rc" -eq 0 ] && echo "renamed ${name}: ${SESSION} -> ${NEWNAME}"
+exit $rc

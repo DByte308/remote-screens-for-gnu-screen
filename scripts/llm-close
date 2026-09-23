@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# llm-close — close (quit) a GNU screen session on a named box.
+# Usage: llm-close <connection> <session-id>
+# This ENDS the session (and the shell/processes running in it) — expected.
+# Uses `screen -S <session> -X quit`; works for attached & detached.
+
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GET="$SELF_DIR/llm-config-get"
+
+if [ "$#" -lt 2 ]; then
+  echo "usage: llm-close <connection> <session-id>" >&2
+  exit 2
+fi
+name="$1"; SESSION="$2"
+
+[[ "$SESSION" =~ ^[0-9]+\.[A-Za-z0-9_.-]+$ ]] || { echo "invalid session '$SESSION'" >&2; exit 2; }
+
+getout="$(bash "$GET" 2>/dev/null)"
+entry=$(printf '%s\n' "$getout" | sed -n "s/^CONN_${name}=//p")
+[ -n "$entry" ] || { echo "unknown connection '$name'" >&2; exit 3; }
+HOST="${entry%%|*}"; rem="${entry#*|}"; USER="${rem%%|*}"; rem="${rem#*|}"; PORT="${rem%%|*}"; MODE="${rem#*|}"
+
+ssh -p "$PORT" -o BatchMode=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new \
+  "${USER}@${HOST}" "screen -S '$SESSION' -X quit" 2>/dev/null
+rc=$?
+[ "$rc" -eq 0 ] && echo "closed ${name}: ${SESSION}"
+exit $rc

@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# llm-open-new — start a NEW GNU screen session on a named box in a Konsole tab.
+# Usage: llm-open-new <connection> [name]
+#   name optional: with it -> `screen -S <name>`, without -> auto id.
+# Fire-and-forget (Konsole is nohup'd).
+
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GET="$SELF_DIR/llm-config-get"
+
+if [ "$#" -lt 1 ]; then
+  echo "usage: llm-open-new <connection> [name]" >&2
+  exit 2
+fi
+name="$1"; NEWNAME="$2"
+
+if [ -n "$NEWNAME" ] && ! [[ "$NEWNAME" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]{0,39}$ ]]; then
+  echo "invalid name '$NEWNAME'" >&2
+  exit 2
+fi
+
+getout="$(bash "$GET" 2>/dev/null)"
+entry=$(printf '%s\n' "$getout" | sed -n "s/^CONN_${name}=//p")
+[ -n "$entry" ] || { echo "unknown connection '$name'" >&2; exit 3; }
+HOST="${entry%%|*}"; rem="${entry#*|}"; USER="${rem%%|*}"; rem="${rem#*|}"; PORT="${rem%%|*}"; MODE="${rem#*|}"
+
+if [ -n "$NEWNAME" ]; then
+  REMOTE="screen -S '$NEWNAME'"
+else
+  REMOTE="screen"
+fi
+
+SSHOPT=(-p "$PORT" -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new)
+exec nohup konsole --new-tab -e ssh "${SSHOPT[@]}" -t "${USER}@${HOST}" "$REMOTE" \
+  >/dev/null 2>&1 &
