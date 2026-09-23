@@ -22,6 +22,7 @@ into it from Konsole. Each connection has an **engine**:
 - Click the badge for details.
 - Screen boxes: pick a session and open it in Konsole, or start/rename/close sessions.
 - Herdr boxes: see a live pane/tab/workspace count and open the Herdr TUI on the box.
+- Local Herdr: point a connection at `local` to watch and attach the Herdr server running on this PC (no SSH).
 - Add multiple remote computers and switch between them from the popup.
 - Set the refresh interval, the attach mode (Screen only), and the engine per box.
 
@@ -32,8 +33,10 @@ manage its sessions.
 ## Before you start
 
 You need KDE Plasma 6 and Konsole on your desktop. On each remote computer you
-need SSH access; GNU Screen for Screen boxes, and Herdr for Herdr boxes. Set
-up SSH key authentication so `ssh user@your-host screen -ls` (or
+need SSH access; GNU Screen for Screen boxes, and Herdr for Herdr boxes. To
+watch Herdr *on this very PC*, Herdr also has to be installed and its server
+running here (use the gear's "This PC (local Herdr)" checkbox).
+Set up SSH key authentication so `ssh user@your-host screen -ls` (or
 `herdr pane list`) works without a password prompt before installing.
 
 ## Install
@@ -69,6 +72,10 @@ Select a computer in the **Box** menu.
 - **Herdr box**: the popup shows the pane/tab/workspace count. **Open
   Herdr** starts `ssh -t user@box herdr` in a Konsole tab so you land in
   the box's Herdr TUI with its panes and tabs.
+- **Local Herdr**: create a connection with the "This PC (local Herdr)"
+  checkbox in the gear; it sets the host to `local`. The widget then talks
+  to this PC's own Herdr server directly (badge = local panes) and **Open
+  Herdr** opens the local TUI.
 
 **Refresh** checks for changes immediately.
 
@@ -93,14 +100,17 @@ POLL_SECONDS=60
 ACTIVE=LLM
 CONN_LLM="192.0.2.55|user|22|dr|screen"
 CONN_PC1="192.0.2.56|user|22|x|herdr"
+CONN_LOCAL="local|local|0|dr|herdr"
 ```
 
 These are example addresses, not working servers. Each connection has a name,
 host, SSH user, port, attach mode (`dr` or `x`), and engine (`screen` or
-`herdr`). The engine field is optional and defaults to `screen`. Connection
-names may contain letters, numbers, underscores, and hyphens, but must start
-with a letter or underscore. The config file is parsed as data, never
-executed as a shell script (the `|` values must not become shell pipes).
+`herdr`). The engine field is optional and defaults to `screen`. The special
+host `local` means the Herdr server on this PC: user/port are ignored and the
+engine is forced to `herdr`, so no SSH is used. Connection names may contain
+letters, numbers, underscores, and hyphens, but must start with a letter or
+underscore. The config file is parsed as data, never executed as a shell
+script (the `|` values must not become shell pipes).
 
 If you want to use the helpers from a terminal, install them separately:
 

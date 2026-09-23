@@ -51,6 +51,12 @@ PlasmoidItem {
     }
     function activeHost() { var c = activeConn(); return c ? c.host : "" }
     function activeUser() { var c = activeConn(); return c ? c.user : "" }
+    function activeIsLocal() { var c = activeConn(); return c ? c.host === "local" : false }
+    function displayHost() {
+        var c = activeConn()
+        if (c && c.host === "local") return "this PC"
+        return c ? c.host : ""
+    }
 
     // absolute path of a bundled script inside the installed package
     // (Plasmoid.file is not always callable; resolvedUrl is the reliable route;
@@ -322,26 +328,46 @@ PlasmoidItem {
                 sPort.text = c ? String(c.port) : "22"
                 sAttach.currentIndex = c && c.mode === "x" ? 1 : 0
                 sEngine.currentIndex = c && c.engine === "herdr" ? 1 : 0
+                sLocal.checked = c && c.host === "local"
+                applyLocalUi()
                 sPoll.text = String(root.cfg.poll)
             }
 
+            function applyLocalUi() {
+                sHost.enabled = !sLocal.checked
+                sUser.enabled = !sLocal.checked
+                sPort.enabled = !sLocal.checked
+                sAttach.enabled = !sLocal.checked
+                sEngine.enabled = !sLocal.checked
+                if (sLocal.checked) {
+                    sHost.text = "local"
+                    if (sEngine.currentIndex !== 1) sEngine.currentIndex = 1
+                }
+            }
+
             function saveSettings() {
-                var n = sName.text.trim(), h = sHost.text.trim(), u = sUser.text.trim()
-                var p = sPort.text.trim(), pol = sPoll.text.trim()
-                var m = sAttach.currentIndex === 1 ? "x" : "dr"
+                var n = sName.text.trim(), pol = sPoll.text.trim()
                 if (!/^[A-Za-z_][A-Za-z0-9_-]{0,31}$/.test(n)) { sMsg.text = "Use letters, numbers, _ or -; start with a letter or _."; return }
-                if (!h || !/^[A-Za-z0-9._:-]+$/.test(h)) { sMsg.text = "Enter a valid hostname or IP address."; return }
-                if (!u || !/^[A-Za-z0-9._-]+$/.test(u)) { sMsg.text = "Enter a valid SSH username."; return }
-                if (!/^\d+$/.test(p) || Number(p) < 1 || Number(p) > 65535) { sMsg.text = "Port must be 1–65535"; return }
                 if (!/^\d+$/.test(pol) || Number(pol) < 10 || Number(pol) > 3600) { sMsg.text = "Refresh interval must be 10–3600 seconds."; return }
-                var en = sEngine.currentIndex === 1 ? "herdr" : "screen"
-                var cmd = "set-conn " + n + " " + h + " " + u + " " + p + " " + m + " --engine " + en
+                var cmd
+                if (sLocal.checked) {
+                    cmd = "set-conn " + n + " local local 0 dr --engine herdr"
+                } else {
+                    var h = sHost.text.trim(), u = sUser.text.trim()
+                    var p = sPort.text.trim()
+                    var m = sAttach.currentIndex === 1 ? "x" : "dr"
+                    if (!h || !/^[A-Za-z0-9._:-]+$/.test(h)) { sMsg.text = "Enter a valid hostname or IP address."; return }
+                    if (!u || !/^[A-Za-z0-9._-]+$/.test(u)) { sMsg.text = "Enter a valid SSH username."; return }
+                    if (!/^\d+$/.test(p) || Number(p) < 1 || Number(p) > 65535) { sMsg.text = "Port must be 1–65535"; return }
+                    var en = sEngine.currentIndex === 1 ? "herdr" : "screen"
+                    cmd = "set-conn " + n + " " + h + " " + u + " " + p + " " + m + " --engine " + en
+                }
                 if (n !== root.cfg.active) cmd += " set-active " + n
                 cmd += " set-poll " + pol
                 root.runConfig(cmd)
                 sMsg.text = "Saved · refreshing…"
             }
-            function newConn() { sName.text = ""; sHost.text = "…"; sMsg.text = "Enter a name and host, then select Save." }
+            function newConn() { sName.text = ""; sHost.text = "…"; sLocal.checked = false; applyLocalUi(); sMsg.text = "Enter a name and host, then select Save." }
             function delConn() {
                 if (root.cfg.conns.length <= 1) { sMsg.text = "Keep at least one connection."; return }
                 root.runConfig("remove-conn " + root.cfg.active)
@@ -368,7 +394,7 @@ PlasmoidItem {
                         Layout.fillWidth: true
                         PlasmaComponents3.Label {
                             text: root.online
-                                  ? root.cfg.active + " · " + root.activeHost()
+                                  ? root.cfg.active + " · " + root.displayHost()
                                   : root.cfg.active + " · offline"
                             font.weight: Font.Bold
                         }
@@ -497,6 +523,17 @@ PlasmoidItem {
                             ]
                             textRole: "text"; valueRole: "value"
                         }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.topMargin: Kirigami.Units.smallSpacing
+                        PlasmaComponents3.CheckBox {
+                            id: sLocal
+                            text: "This PC (local Herdr) — no SSH"
+                            onToggled: applyLocalUi()
+                        }
+                        Item { Layout.fillWidth: true }
                     }
 
                     RowLayout {
@@ -690,7 +727,11 @@ PlasmoidItem {
                     Item { Layout.fillWidth: true }
                     PlasmaComponents3.Label {
                         Layout.alignment: Qt.AlignVCenter
-                        text: root.online ? root.cfg.active + " · " + root.activeUser() + "@" + root.activeHost() : ""
+                        text: root.online
+                              ? (root.activeIsLocal()
+                                    ? root.cfg.active + " · local Herdr (this PC)"
+                                    : root.cfg.active + " · " + root.activeUser() + "@" + root.activeHost())
+                              : ""
                         color: Kirigami.Theme.disabledTextColor
                     }
                 }

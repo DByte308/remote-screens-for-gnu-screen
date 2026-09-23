@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# llm-open-herdr — open a Konsole tab that attaches to Herdr on a named box.
+# llm-open-herdr — open a Konsole tab that attaches to Herdr on a named box,
+# or to the local Herdr server when the connection host is `local`.
 # Usage: llm-open-herdr <connection>      (default: ACTIVE from config)
-# Runs:  konsole --new-tab -e ssh -t <user>@<host> "herdr"
-#        (starts/attaches the box's Herdr TUI inside that SSH terminal)
+# Runs:  konsole --new-tab -e ssh -t <user>@<host> "herdr"   (remote box)
+#        konsole --new-tab -e herdr                           (HOST=local, this PC)
 # Fire-and-forget (Konsole is nohup'd). Params resolved via llm-config-get.
 
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -19,6 +20,11 @@ if [ -z "$entry" ]; then
   exit 3
 fi
 HOST="${entry%%|*}"; rem="${entry#*|}"; USER="${rem%%|*}"; rem="${rem#*|}"; PORT="${rem%%|*}"
+
+if [ "$HOST" = "local" ]; then
+  # Herdr on this PC: open the local TUI (attaches to the local server socket)
+  exec nohup konsole --new-tab -e bash -c "export PATH=\$HOME/.local/bin:\$PATH; exec herdr" >/dev/null 2>&1 &
+fi
 
 SSHOPT=(-p "$PORT" -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new)
 exec nohup konsole --new-tab -e ssh "${SSHOPT[@]}" -t "${USER}@${HOST}" "herdr" >/dev/null 2>&1 &

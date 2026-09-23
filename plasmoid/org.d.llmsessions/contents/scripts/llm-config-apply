@@ -6,9 +6,10 @@
 #
 # Values:
 #   NAME    -> [A-Za-z_][A-Za-z0-9_-]{0,31}
-#   HOST    -> simple hostname/ip [A-Za-z0-9._:-]
-#   USER    -> [A-Za-z0-9._-]
-#   PORT    -> 1-65535
+#   HOST    -> simple hostname/ip [A-Za-z0-9._:-], or the special value `local`
+#              (local Herdr on this PC: USER/PORT ignored, engine forced to herdr)
+#   USER    -> [A-Za-z0-9._-] (ignored when HOST=local)
+#   PORT    -> 1-65535 (ignored when HOST=local)
 #   MODE    -> dr | x
 #   ENGINE  -> screen | herdr   (default: screen)
 #   SECONDS -> 10-3600
@@ -56,8 +57,16 @@ while [ "$i" -lt "${#args[@]}" ]; do
       fi
       case "$NAME" in ''|*[!A-Za-z0-9_-]*|[!A-Za-z_]*) echo "invalid connection name '$NAME'"; err=1;; esac
       [[ "$H" =~ ^[A-Za-z0-9._:-]+$ ]] || { echo "invalid HOST '$H'"; err=1; }
-      [[ "$U" =~ ^[A-Za-z0-9._-]+$ ]]  || { echo "invalid USER '$U'"; err=1; }
-      [[ "$P" =~ ^[0-9]+$ ]] && [ "$P" -ge 1 ] && [ "$P" -le 65535 ] || { echo "invalid PORT '$P'"; err=1; }
+      case "$H" in
+        local)
+          # special "this PC" target: no SSH user/port, engine forced to herdr
+          U="local"; P="0"; EN="herdr"
+          ;;
+        *)
+          [[ "$U" =~ ^[A-Za-z0-9._-]+$ ]]  || { echo "invalid USER '$U'"; err=1; }
+          [[ "$P" =~ ^[0-9]+$ ]] && [ "$P" -ge 1 ] && [ "$P" -le 65535 ] || { echo "invalid PORT '$P'"; err=1; }
+          ;;
+      esac
       case "$M" in dr|x) ;; *) echo "invalid MODE '$M'"; err=1;; esac
       case "$EN" in screen|herdr) ;; *) echo "invalid ENGINE '$EN' (screen|herdr)"; err=1;; esac
       [ "$err" -eq 0 ] && CONF_CONN["$NAME"]="$H|$U|$P|$M|$EN"

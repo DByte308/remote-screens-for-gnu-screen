@@ -26,8 +26,14 @@ TIMEOUT=12
 
 # ============================ engine: herdr ============================
 if [ "$ENGINE" = "herdr" ]; then
-  remote=$(timeout "$TIMEOUT" ssh "${SSHOPT[@]}" -o BatchMode=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR \
-    "$TARGET" '
+  LOCAL=""
+  [ "$HOST" = "local" ] && LOCAL=1
+  DISPHOST="$HOST"
+  [ -n "$LOCAL" ] && DISPHOST="this PC"
+
+  if [ -n "$LOCAL" ]; then
+    # Herdr server on this PC: talk to its local socket directly, no SSH
+    remote=$( /bin/sh -c '
       export PATH="$HOME/.local/bin:$PATH"
       echo "__HERDR__"
       herdr pane list 2>/dev/null
@@ -36,15 +42,31 @@ if [ "$ENGINE" = "herdr" ]; then
       echo "__WORKSPACES__"
       herdr workspace list 2>/dev/null
       echo "__USERS__"
-      w -h
       echo "__UPTIME__"
       uptime
       echo "__END__"
     ' 2>/dev/null)
+  else
+    remote=$(timeout "$TIMEOUT" ssh "${SSHOPT[@]}" -o BatchMode=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR \
+      "$TARGET" '
+        export PATH="$HOME/.local/bin:$PATH"
+        echo "__HERDR__"
+        herdr pane list 2>/dev/null
+        echo "__TABS__"
+        herdr tab list 2>/dev/null
+        echo "__WORKSPACES__"
+        herdr workspace list 2>/dev/null
+        echo "__USERS__"
+        w -h
+        echo "__UPTIME__"
+        uptime
+        echo "__END__"
+      ' 2>/dev/null)
 
-  if [ -z "$remote" ]; then
-    echo "OFFLINE — ${name} (${HOST}) unreachable"
-    exit 1
+    if [ -z "$remote" ]; then
+      echo "OFFLINE — ${name} (${HOST}) unreachable"
+      exit 1
+    fi
   fi
 
   panes_json=$(printf '%s\n' "$remote" | sed -n '/__HERDR__/,/__TABS__/p' | sed '1d;$d')
@@ -98,11 +120,11 @@ EOF
 
   [ -z "$block" ] && block="Herdr: (no data)"
 
-  echo "${name} (${HOST}) · up ${upt} · load ${load}"
+  echo "${name} (${DISPHOST}) · up ${upt} · load ${load}"
   echo
   printf '%s\n' "$block"
   echo
-  echo "SSH terminals: ${nusers}"
+  [ -z "$LOCAL" ] && echo "SSH terminals: ${nusers}"
   exit 0
 fi
 

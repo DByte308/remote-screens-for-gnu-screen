@@ -107,3 +107,15 @@ the connection through `llm-config-get` output (single source of truth).
   attaches the box TUI with `ssh -t user@host "herdr"`. No per-pane writes yet.
 - Non-interactive SSH PATH may miss `~/.local/bin`; the herdr branch of
   `llm-sessions` prepends `$HOME/.local/bin` to PATH inside the remote script.
+- Host sentinel `local` = the Herdr server on this PC (no SSH):
+  `llm-sessions` gathers herdr pane/tab/workspace JSON locally and
+  `llm-open-herdr` opens `konsole --new-tab -e herdr`; `llm-config-apply
+  set-conn` accepts `local` in place of a host (USER/PORT ignored, engine
+  forced to `herdr`). The gear's "This PC (local Herdr)" checkbox writes
+  host `local`.
+- Box connections must stay engine `screen` (they manage GNU Screen); only a
+  herdr-typed box or a `local` connection should use `herdr`. A stray engine
+  can silently flip what the badge counts.
+- PRACTICE: snapshot `~/.config/llmsessions/box.conf` (or pass `LLMBOX_CONF`)
+  before any `llm-config-apply` against the real config, and re-verify
+  `llm-config-get` after. Engine drift was caught by one such diff.
