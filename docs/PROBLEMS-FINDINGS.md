@@ -92,3 +92,18 @@ the connection through `llm-config-get` output (single source of truth).
   locale; cosmetic.
 - Fallback if the panel popup ever breaks: left-click → executable engine →
   `kdialog --menu` picker → Konsole attach (no panel-popup dependency).
+
+## v0.7.0 Herdr engine field
+- `CONN_<name>` values now carry an optional 5th field: `host|user|port|mode|engine`
+  (engine `screen|herdr`, defaults `screen`). `llm-config-get` normalizes all
+  entries to 5 fields; never assume 4. `main.qml` parses with an optional
+  group: `...\|mode(?:\|engine)?$`.
+- `llm-config-apply set-conn` takes the engine via an explicit `--engine`
+  token, NOT a positional 6th arg: set-conn consumes exactly 5 positional
+  values, then peeks for `--engine`. A positional 6th arg would swallow the
+  next subcommand (e.g. `set-active`) in a combined call.
+- Herdr remotes are not local panes: the widget only counts panes/tabs/
+  workspaces (JSON via `herdr pane list` over SSH + python3 on the box) and
+  attaches the box TUI with `ssh -t user@host "herdr"`. No per-pane writes yet.
+- Non-interactive SSH PATH may miss `~/.local/bin`; the herdr branch of
+  `llm-sessions` prepends `$HOME/.local/bin` to PATH inside the remote script.
