@@ -75,7 +75,9 @@ Select a computer in the **Box** menu.
 - **Local Herdr**: create a connection with the "This PC (local Herdr)"
   checkbox in the gear; it sets the host to `local`. The widget then talks
   to this PC's own Herdr server directly (badge = local panes) and **Open
-  Herdr** opens the local TUI.
+  Herdr** opens the local TUI in Konsole. It remains available even when no
+  panes are open or the Herdr server is stopped; launching Herdr starts or
+  attaches to its persistent session.
 
 **Refresh** checks for changes immediately.
 

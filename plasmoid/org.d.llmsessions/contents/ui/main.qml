@@ -506,11 +506,11 @@ PlasmoidItem {
                               ? (root.total >= 0
                                   ? "%1 panes · %2 tabs · %3 workspaces".arg(root.total).arg(root.herdrTabs).arg(root.herdrWorkspaces)
                                   : "no panes")
-                              : "server unreachable"
+                              : (root.activeIsLocal() ? "server stopped · Open to start" : "server unreachable · Open to retry")
                     }
                     PlasmaComponents3.Button {
                         text: "Open Herdr…"
-                        enabled: root.online
+                        // Herdr can start its server when no terminal is open.
                         onClicked: root.openHerdr()
                     }
                 }
