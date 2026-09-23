@@ -1,85 +1,59 @@
-# Screen Sessions
+# Remote Screens for GNU Screen
 
 <p align="center">
-  <img src="logo.png" alt="Screen Sessions" width="300">
+  <img src="logo.png" alt="Remote Screens logo" width="300">
   <br>
-  <img src="icon.png" alt="GNU Screen extension" width="100">
+  <img src="icon.png" alt="GNU Screen icon" width="100">
 </p>
 
-A KDE Plasma 6 panel widget that keeps an eye on the open terminals of one or
-more remote machines and lets you manage them from your desktop: see which
-GNU Screen sessions are running and whether they are attached, open one in a
-Konsole tab, rename it, start a new one, or close it.
+Keep your remote terminal sessions within reach. Remote Screens is a KDE Plasma 6 panel widget for computers running [GNU Screen](https://www.gnu.org/software/screen/). It shows which sessions are running, lets you open them in Konsole, and gives you simple controls to start, rename, or close them.
 
-## Features
+## What you can do
 
-- Panel badge with a live summary (screens open, attached/detached counts).
-  Color: green = online with sessions, amber = online but none, red = unreachable
-  (read-only status polling over SSH).
-- Popup with full status text and an **Open** dropdown that attaches a session
-  in a Konsole tab.
-- Session actions: **Rename**, **New terminal**, **Close** (with confirmation).
-- **Multiple connections** (LLM, PC1, ...) with a box switcher; the badge
-  follows the active connection.
-- **Gear settings** panel: add/edit/delete connections, attach mode, refresh
-  interval.
-- Auto-refresh (configurable); all panel copies of the widget share one SSH
-  poll per connection.
+- Check the panel badge for attached and detached sessions. Green means sessions are available, amber means the computer is reachable but has none, and red means it cannot be reached.
+- Click the badge to see session details and open one in Konsole.
+- Start a session, rename one, or close one with confirmation.
+- Add multiple remote computers and switch between them from the popup.
+- Choose how often to refresh and whether opening a session takes it over or shares it.
 
-## Built on GNU Screen
+Remote Screens uses SSH to talk to GNU Screen on each computer. It does not create its own session service or keep a separate list of sessions. If a remote computer is offline, the widget cannot manage its sessions.
 
-This tool is a front-end to the **GNU Screen** terminal multiplexer running on
-each remote box. It has no session tracking of its own: every piece of
-information it shows and every action it performs goes through `screen` on the
-remote side.
+## Before you start
 
-- List sessions: `screen -ls`
-- Open a session: `screen -dr` (pull here) or `screen -x` (share)
-- New terminal: `screen -S <name>`
-- Rename: `screen -X sessionname <newname>`
-- Close: `screen -X quit`
-
-So **GNU Screen must be installed on every machine this connects to**; it is
-the base the tool runs on. Without it there is nothing to list, open, rename,
-or close (the badge just shows no sessions / offline).
-
-## Requirements
-
-- KDE Plasma 6 (plasmoid / QML applet support)
-- Konsole
-- Passwordless SSH key access to the remote machines
-- **GNU Screen on the remote machines** (required base, see above)
+You need KDE Plasma 6 and Konsole on your desktop, plus GNU Screen and SSH access on each remote computer. Set up SSH key authentication so you can connect without an interactive password prompt. For example, make sure `ssh user@your-host screen -ls` works from your desktop before installing the widget.
 
 ## Install
 
-```bash
-# the widget is self-contained (scripts are bundled in the package)
-kpackagetool6 -t Plasma/Applet -i plasmoid/org.d.llmsessions
+From a checkout of this repository, run:
 
-# OPTIONAL — only if you also want the helpers on the command line:
-install -m755 scripts/* ~/.local/bin/
+```bash
+kpackagetool6 -t Plasma/Applet -i plasmoid/org.d.llmsessions
 ```
 
-Upgrade in place with `-u`, remove with `-r`:
-`kpackagetool6 -t Plasma/Applet -u plasmoid/org.d.llmsessions`
+Then right-click your panel, choose **Add Widgets**, and add **Remote Screens for GNU Screen**. Open the widget's gear button to set up a connection. The widget includes the scripts it needs; installing them separately is optional.
 
-Then right-click a panel → *Add Widgets* → "Screen Sessions".
+To update an existing installation after pulling changes:
 
-## Usage
+```bash
+kpackagetool6 -t Plasma/Applet -u plasmoid/org.d.llmsessions
+```
 
-| In the popup | Does |
-|---|---|
-| `Box` | switch the active connection |
-| `Open` | attach the selected session in a Konsole tab |
-| `Rename` | rename the selected session (`screen -X sessionname`) |
-| `New` | start a new screen terminal on the box (optional name) |
-| `Close…` | end a session after confirmation (`screen -X quit`) |
-| `Refresh` | poll immediately |
-| ⚙ gear | connection settings (see below) |
+To remove it, use `kpackagetool6 -t Plasma/Applet -r org.d.llmsessions`. The widget's internal ID stays the same so existing panel placements and configuration continue to work.
 
-## Configuration
+## Using the widget
 
-Stored in `~/.config/llmsessions/box.conf` (shared by the widget and scripts):
+Select a computer in the **Box** menu, then choose a session in **Open**. The **Open** button attaches it in Konsole. **New** starts another session, **Rename** changes its name, and **Close** ends it after asking for confirmation. **Refresh** checks for changes immediately.
+
+In the gear settings, choose an attach mode:
+
+- **Detach and pull here** (`screen -dr`): takes over the session from another terminal.
+- **Share** (`screen -x`): opens the same session without detaching it elsewhere.
+
+Closing a session also stops programs running inside it. Check which session you selected first.
+
+## Configuration and command-line helpers
+
+The widget stores its settings in `~/.config/llmsessions/box.conf`. You can manage connections from the gear button; the file is shared with the optional command-line helpers. The existing config path and `llm-` helper names are retained for compatibility.
 
 ```ini
 POLL_SECONDS=60
@@ -88,48 +62,29 @@ CONN_LLM="192.0.2.55|user|22|dr"
 CONN_PC1="192.0.2.56|user|22|x"
 ```
 
-- Connection entry: `name = host|user|port|mode`.
-- `mode dr` = detach from the box and pull the session here (`screen -dr`).
-- `mode x`  = shared multi-attach; the session stays on the box (`screen -x`).
-- Connection names: `[A-Za-z_][A-Za-z0-9_-]*` (no spaces).
-- The file is parsed, never shell-sourced (values contain `|`).
+These are example addresses, not working servers. Each connection has a name, host, SSH user, port, and attach mode (`dr` or `x`). Connection names may contain letters, numbers, underscores, and hyphens, but must start with a letter or underscore. The config file is parsed as data, not executed as a shell script.
 
-## Scripts (command line)
-
-Same path the widget uses, handy for scripts/cron:
-
-| Script | Purpose |
-|---|---|
-| `llm-config-get` | print effective config (KEY=VALUE) |
-| `llm-config-apply` | validate & save config. Subcommands: `set-conn NAME HOST USER PORT MODE`, `set-active NAME`, `remove-conn NAME`, `set-poll SECONDS`. Atomic write, nothing saved if invalid. |
-| `llm-sessions [conn]` | read-only status poll |
-| `llm-open-screen [conn] <session>` | attach a session in Konsole |
-| `llm-open-new [conn] [name]` | start a new terminal on the box |
-| `llm-rename <conn> <session> <newname>` | rename a session |
-| `llm-close <conn> <session>` | end a session |
-
-Example:
+If you want to use the helpers from a terminal, install them separately:
 
 ```bash
-llm-config-apply set-conn PC1 192.0.2.56 user 22 x set-active PC1
-llm-sessions PC1
-llm-open-new PC1 build
+install -d ~/.local/bin
+install -m755 scripts/* ~/.local/bin/
 ```
 
-All scripts read `$LLMBOX_CONF` to use a custom config file (for testing).
+| Helper | Purpose |
+|---|---|
+| `llm-sessions [connection]` | Show current sessions |
+| `llm-open-screen [connection] <session>` | Open a session in Konsole |
+| `llm-open-new [connection] [name]` | Start a session |
+| `llm-rename <connection> <session> <new-name>` | Rename a session |
+| `llm-close <connection> <session>` | End a session |
+| `llm-config-get` | Show the current settings |
+| `llm-config-apply` | Change settings from the command line |
 
-## Project layout
+For example, `llm-sessions PC1` lists sessions on the connection called PC1. Set `LLMBOX_CONF` to use another config file, such as when testing. The supported `llm-config-apply` operations are `set-conn NAME HOST USER PORT MODE`, `set-active NAME`, `remove-conn NAME`, and `set-poll SECONDS`; you can combine operations in one call.
 
-```
-├── README.md
-├── docs/PROBLEMS-FINDINGS.md      # development notes & gotchas
-├── plasmoid/org.d.llmsessions/    # the Plasma widget (self-contained)
-│   └── contents/
-│       ├── ui/                    #   main.qml + gear.svg
-│       └── scripts/               #   bundled helper scripts
-└── scripts/                       # same scripts, for CLI use (optional)
-```
+## Notes
 
-## License
+The widget is packaged in `plasmoid/org.d.llmsessions/`. The top-level `scripts/` directory contains optional CLI copies of the same scripts bundled with the widget. Development notes and Plasma-specific troubleshooting live in [`docs/PROBLEMS-FINDINGS.md`](docs/PROBLEMS-FINDINGS.md).
 
-GPL-2.0-or-later (see `plasmoid/org.d.llmsessions/metadata.json`).
+Licensed under GPL-2.0-or-later.

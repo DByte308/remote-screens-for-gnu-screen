@@ -29,10 +29,10 @@ PlasmoidItem {
     property var sessions: []
     property string lastUpdate: ""
 
-    toolTipMainText: root.cfg.active + " · terminal sessions"
+    toolTipMainText: root.cfg.active + " · GNU Screen sessions"
     toolTipSubText: (online
-        ? (total > 0 ? "%1 screen attached · %2 detached".arg(att).arg(det) : "no screen sessions")
-        : "box unreachable") + " · updated " + lastUpdate
+        ? (total > 0 ? "%1 attached · %2 detached".arg(att).arg(det) : "no sessions running")
+        : "computer unreachable") + " · updated " + lastUpdate
 
     function statusColor() {
         if (!online) return "#f44336"
@@ -294,22 +294,22 @@ PlasmoidItem {
                 var n = sName.text.trim(), h = sHost.text.trim(), u = sUser.text.trim()
                 var p = sPort.text.trim(), pol = sPoll.text.trim()
                 var m = sAttach.currentIndex === 1 ? "x" : "dr"
-                if (!/^[A-Za-z_][A-Za-z0-9_-]{0,31}$/.test(n)) { sMsg.text = "Bad name (A-z 0-9 _ -, no spaces)"; return }
-                if (!h || !/^[A-Za-z0-9._:-]+$/.test(h)) { sMsg.text = "Bad host"; return }
-                if (!u || !/^[A-Za-z0-9._-]+$/.test(u)) { sMsg.text = "Bad user"; return }
+                if (!/^[A-Za-z_][A-Za-z0-9_-]{0,31}$/.test(n)) { sMsg.text = "Use letters, numbers, _ or -; start with a letter or _."; return }
+                if (!h || !/^[A-Za-z0-9._:-]+$/.test(h)) { sMsg.text = "Enter a valid hostname or IP address."; return }
+                if (!u || !/^[A-Za-z0-9._-]+$/.test(u)) { sMsg.text = "Enter a valid SSH username."; return }
                 if (!/^\d+$/.test(p) || Number(p) < 1 || Number(p) > 65535) { sMsg.text = "Port must be 1–65535"; return }
-                if (!/^\d+$/.test(pol) || Number(pol) < 10 || Number(pol) > 3600) { sMsg.text = "Refresh must be 10–3600 s"; return }
+                if (!/^\d+$/.test(pol) || Number(pol) < 10 || Number(pol) > 3600) { sMsg.text = "Refresh interval must be 10–3600 seconds."; return }
                 var cmd = "set-conn " + n + " " + h + " " + u + " " + p + " " + m
                 if (n !== root.cfg.active) cmd += " set-active " + n
                 cmd += " set-poll " + pol
                 root.runConfig(cmd)
-                sMsg.text = "saved · reloading…"
+                sMsg.text = "Saved · refreshing…"
             }
-            function newConn() { sName.text = ""; sHost.text = "…"; sMsg.text = "type a new name + host, then Save" }
+            function newConn() { sName.text = ""; sHost.text = "…"; sMsg.text = "Enter a name and host, then select Save." }
             function delConn() {
-                if (root.cfg.conns.length <= 1) { sMsg.text = "can't delete the only connection"; return }
+                if (root.cfg.conns.length <= 1) { sMsg.text = "Keep at least one connection."; return }
                 root.runConfig("remove-conn " + root.cfg.active)
-                sMsg.text = "removed " + root.cfg.active + " · reloading…"
+                sMsg.text = "removed " + root.cfg.active + " · refreshing…"
             }
 
             ColumnLayout {
@@ -333,13 +333,13 @@ PlasmoidItem {
                         PlasmaComponents3.Label {
                             text: root.online
                                   ? root.cfg.active + " · " + root.activeHost()
-                                  : root.cfg.active + " · OFFLINE"
+                                  : root.cfg.active + " · offline"
                             font.weight: Font.Bold
                         }
                         PlasmaComponents3.Label {
                             text: root.online
                                    ? "%1 attached · %2 detached".arg(root.att).arg(root.det)
-                                   : "box not reachable"
+                                   : "computer unreachable"
                             color: Kirigami.Theme.disabledTextColor
                         }
                     }
@@ -473,7 +473,7 @@ PlasmoidItem {
                         enabled: root.online && root.sessions.length > 0
                         displayText: root.online && root.sessions.length > 0
                                      ? currentText
-                                     : (root.online ? "no screen sessions" : "box offline")
+                                     : (root.online ? "no sessions running" : "computer offline")
                     }
                     PlasmaComponents3.Button {
                         text: "Open"
@@ -522,13 +522,13 @@ PlasmoidItem {
                             onClicked: {
                                 var nn = rmName.text.trim()
                                 if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,39}$/.test(nn)) {
-                                    actMsg.text = "bad name (A-z 0-9 . _ -)"
+                                    actMsg.text = "Use letters, numbers, dots, _ or - for the name."
                                     return
                                 }
                                 var id = selSessionId()
                                 if (id && nn) {
                                     root.runAction(root.scriptPath("llm-rename") + " " + root.cfg.active + " " + id + " " + nn)
-                                    actMsg.text = "renamed → " + nn
+                                    actMsg.text = "Renamed to " + nn
                                 }
                                 actionMode = ""
                             }
@@ -551,11 +551,11 @@ PlasmoidItem {
                             onClicked: {
                                 var nn = nwName.text.trim()
                                 if (nn && !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,39}$/.test(nn)) {
-                                    actMsg.text = "bad name (A-z 0-9 . _ -)"
+                                    actMsg.text = "Use letters, numbers, dots, _ or - for the name."
                                     return
                                 }
                                 root.runAction(root.scriptPath("llm-open-new") + " " + root.cfg.active + " " + nn)
-                                actMsg.text = "starting terminal…"
+                                actMsg.text = "Starting session…"
                                 actionMode = ""
                             }
                         }
@@ -577,7 +577,7 @@ PlasmoidItem {
                                 var id = selSessionId()
                                 if (id) {
                                     root.runAction(root.scriptPath("llm-close") + " " + root.cfg.active + " " + id)
-                                    actMsg.text = "closing " + id + "…"
+                                    actMsg.text = "Closing " + id + "…"
                                 }
                                 actionMode = ""
                             }
